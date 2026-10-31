@@ -456,6 +456,10 @@ class DataEngine:
 
             stock = int(p["stock_quantity"])
             status = p["status"].lower()
+            is_purchasable = (stock > 0 and status in ("active", "discontinued"))
+            pix_val = (
+                round(effective_price, 2) if has_promo else round(effective_price * 0.95, 2)
+            ) if is_purchasable else None
 
             item_data = {
                 "product_id": p["product_id"],
@@ -464,6 +468,7 @@ class DataEngine:
                 "category_name": p["category_name"],
                 "original_price": orig_price,
                 "effective_price": effective_price,
+                "pix_price": pix_val,
                 "has_active_promotion": has_promo,
                 "promotion_details": active_promo,
                 "expired_promotions": expired_promos,
@@ -634,11 +639,15 @@ class DataEngine:
             scored_candidates.sort(key=lambda x: (x[0], x[1]))
             similar_options = [item[2] for item in scored_candidates[:4]]
 
-        if stock == 0 or status == "coming_soon":
-            payment_plans["unavailable_item_warning"] = (
-                "ATENÇÃO: Este produto NÃO está disponível para pronta entrega hoje (sem estoque ou em pré-venda). "
-                "NÃO ofereça compra nem desconto no PIX para este item indisponível; apresente os preços e o desconto no PIX apenas dos modelos similares disponíveis em similar_available_alternatives."
-            )
+        is_purchasable_now = (stock > 0 and status in ("active", "discontinued"))
+        if not is_purchasable_now:
+            payment_plans = {
+                "available_for_immediate_purchase": False,
+                "note": (
+                    "Produto sem estoque para pronta entrega hoje. "
+                    "Apresente os preços e o desconto de 5% no PIX apenas para os modelos similares disponíveis em similar_available_alternatives."
+                )
+            }
 
         # Montagem do status comercial e diretrizes da Seção 7.3
         status_guidance = ""
@@ -671,11 +680,18 @@ class DataEngine:
         expired_guidance = None
         if expired_promos and not has_promo:
             exp_list = ", ".join([f"{ep['description']} ({int(ep['discount_percent'])}% off)" for ep in expired_promos])
-            expired_guidance = (
-                f"ATENÇÃO (Seção 7.3 — Promoção Expirada): Este produto já teve promoção(ões) anterior(es) que estão ENCERRADAS/VENCIDAS no sistema: [{exp_list}]. "
-                f"Você DEVE informar explicitamente na sua resposta que a campanha ({exp_list}) já foi encerrada/expirou, apresentar o preço atual ({format_brl(effective_price)}) "
-                f"e destacar o desconto de 5% no PIX ({format_brl(payment_plans['pix']['price'])})."
-            )
+            if is_purchasable_now:
+                expired_guidance = (
+                    f"ATENÇÃO (Seção 7.3 — Promoção Expirada): Este produto já teve promoção(ões) anterior(es) que estão ENCERRADAS/VENCIDAS no sistema: [{exp_list}]. "
+                    f"Você DEVE informar explicitamente na sua resposta que a campanha ({exp_list}) já foi encerrada/expirou, apresentar o preço atual ({format_brl(effective_price)}) "
+                    f"e destacar o desconto de 5% no PIX ({format_brl(payment_plans['pix']['price'])})."
+                )
+            else:
+                expired_guidance = (
+                    f"ATENÇÃO (Seção 7.3 — Promoção Expirada): Este produto já teve promoção(ões) anterior(es) que estão ENCERRADAS/VENCIDAS no sistema: [{exp_list}], "
+                    f"e além disso o item está temporariamente esgotado (preço de tabela de referência: {format_brl(effective_price)}). "
+                    f"Informe que a promoção expirou e que o modelo está sem estoque, oferecendo as alternativas disponíveis com 5% de desconto no PIX."
+                )
             status_guidance = f"{status_guidance} | {expired_guidance}"
 
         return {

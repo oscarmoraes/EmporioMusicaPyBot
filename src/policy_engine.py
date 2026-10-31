@@ -209,7 +209,8 @@ class PolicyEngine:
                     "Conforme a Seção 1 e Seção 7.1 do manual, a Empório da Música trabalha "
                     "EXCLUSIVAMENTE com instrumentos musicais completos para garantir atendimento especializado, "
                     "não comercializando acessórios como cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. "
-                    "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios."
+                    "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios. "
+                    "Se houver perguntas aleatórias fora do domínio (como clima ou receitas culinárias), recuse-as em no máximo 1 frase curta e NUNCA escreva receitas ou listas de ingredientes."
                 )
             }
         return None
