@@ -32,11 +32,11 @@ AGENT_TOOLS = [
                     },
                     "max_price": {
                         "type": "number",
-                        "description": "Preço máximo em Reais (R$) considerado sobre o preço efetivo/promocional. Preencha APENAS se o cliente citar um valor numérico explícito de teto (ex: 'até 1000'); NUNCA invente um teto se o cliente pedir apenas 'do mais barato ao mais caro'."
+                        "description": "Preço máximo em Reais (R$) considerado sobre o preço efetivo/promocional. Preencha APENAS se o cliente citar um valor numérico explícito de teto."
                     },
                     "min_price": {
                         "type": "number",
-                        "description": "Preço mínimo em Reais (R$). Preencha APENAS se o cliente citar um valor numérico explícito de piso (ex: 'acima de 10000')."
+                        "description": "Preço mínimo em Reais (R$). Preencha APENAS se o cliente citar um valor numérico explícito de piso."
                     },
                     "strings_filter": {
                         "type": "string",
@@ -68,7 +68,7 @@ AGENT_TOOLS = [
                 "properties": {
                     "product_id_or_name": {
                         "type": "string",
-                        "description": "ID numérico do produto (ex: '95') ou nome/modelo (ex: 'Takamine GD20', 'Crafter HT-100', 'Ibanez Bass 2X')"
+                        "description": "ID numérico do produto ou nome da marca e modelo do instrumento"
                     }
                 },
                 "required": ["product_id_or_name"]
@@ -90,11 +90,11 @@ AGENT_TOOLS = [
                 "properties": {
                     "order_id": {
                         "type": "integer",
-                        "description": "Número de identificação do pedido (ex: 1, 8, 19)"
+                        "description": "Número de identificação do pedido no sistema"
                     },
                     "tracking_code": {
                         "type": "string",
-                        "description": "Código de rastreamento no padrão BR (ex: 'BRAB1234567BR', 'BRJL5544332BR')"
+                        "description": "Código de rastreamento alfanumérico no formato BRXXXXXXXXXBR"
                     },
                     "customer_query": {
                         "type": "string",
@@ -119,7 +119,7 @@ AGENT_TOOLS = [
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Dúvida ou termos a pesquisar nas normas (ex: 'prazo para devolução', 'endereço da loja', 'frete para dourados', 'garantia de violão')"
+                        "description": "Dúvida ou termos a pesquisar nas normas (ex: 'prazo para devolução', 'endereço da loja', 'regras de frete', 'garantia')"
                     },
                     "specific_topic": {
                         "type": "string",

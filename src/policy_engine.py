@@ -87,12 +87,16 @@ class PolicyEngine:
                     "4.4 Itens ESTRITAMENTE NÃO Elegíveis para Troca ou Devolução:\n"
                     "• Instrumentos com personalização ou ajustes sob encomenda (setup, regulagem especial solicitada pelo cliente): NÃO podem ser trocados por preferência nem devolvidos por arrependimento após a customização;\n"
                     "• Produtos adquiridos em promoções de liquidação com aviso explícito de 'venda final';\n"
-                    "• Boquilhas de instrumentos de sopro, por rígidas questões de higiene sanitária (mesmo dentro de 7 dias, boquilhas NÃO são elegíveis para troca)."
+                    "• Boquilhas de instrumentos de sopro, por rígidas questões de higiene sanitária (mesmo dentro de 7 dias, boquilhas NÃO são elegíveis para troca).\n\n"
+                    "4.5 Procedimento em Caso de Avaria no Transporte / Embalagem Amassada ou Rasgada (Seção 5.2):\n"
+                    "• Caso a caixa chegue amassada, rasgada ou com avaria aparente de transportadora, o cliente DEVE RECUSAR O RECEBIMENTO NO ATO DA ENTREGA e contatar imediatamente a loja pelo WhatsApp (67) 3321-4500 ou telefone (67) 3341-4444 para acionamento do seguro.\n\n"
+                    "4.6 Instrumentos Usados como Parte de Pagamento ou Locação (Seção 10):\n"
+                    "• A loja trabalha exclusivamente com venda de instrumentos novos (não aceita usados na troca nem realiza aluguel), mas o atendente pode consultar ou encaminhar propostas especiais à gerência ((67) 3341-4444 / contato@emporiodamusica.com.br)."
                 )
             },
             "frete_entregas": {
                 "title": "5. Política de Frete, Entregas e Rastreamento",
-                "keywords": ["frete", "entrega", "prazo", "motoboy", "campo grande", "correios", "sedex", "pac", "jadlog", "rastreamento", "codigo rastreio", "avaria", "amassada", "rasgada", "danificada", "transportadora", "dourados", "interior", "bateria", "grande porte"],
+                "keywords": ["frete", "entrega", "entregar", "envio", "enviar", "prazo", "motoboy", "campo grande", "correios", "sedex", "pac", "jadlog", "rastreamento", "codigo rastreio", "avaria", "amassada", "rasgada", "danificada", "transportadora", "interior", "outra cidade", "bateria", "piano", "grande porte"],
                 "content": (
                     "5.1 Entregas na Região Metropolitana de Campo Grande/MS:\n"
                     "• Frete GRÁTIS para pedidos acima de R$ 500,00.\n"
@@ -175,14 +179,14 @@ class PolicyEngine:
                     "10. Disposições Finais:\n"
                     "• Este manual é referência obrigatória para toda a equipe de atendimento e assistente virtual.\n"
                     "• A loja comercializa exclusivamente instrumentos musicais novos (não há modalidade prevista no manual para aluguel/locação, recebimento de instrumentos usados como parte de pagamento ou descontos extras de atacado/CNPJ além dos 5% à vista no PIX).\n"
-                    "• Em caso de dúvidas sobre a aplicação de qualquer política ou solicitações comerciais atípicas (como propostas corporativas/atacado, locação ou usados), o atendente deve consultar ou encaminhar à gerência ((67) 3341-4444 / (67) 3321-4500 ou contato@emporiodamusica.com.br) antes de fornecer informações definitivas ao cliente."
+                    "• REGRA OBRIGATÓRIA DE ESCALONAMENTO (Seção 10): Sempre que o cliente consultar sobre instrumentos usados na troca, aluguel/locação, descontos corporativos/atacado ou qualquer exceção às políticas, você DEVE informar explicitamente na resposta que pode consultar ou encaminhar a solicitação à gerência ((67) 3341-4444 / contato@emporiodamusica.com.br)."
                 )
             }
         }
 
     def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
         """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""
-        # Ignora 'Correia' quando grafado como sobrenome próprio após prenome (ex: 'João Correia', 'Matheus Ramos Correia')
+        # Ignora 'Correia' quando grafado como sobrenome próprio após prenome
         text_no_surnames = re.sub(r"\b[A-ZÀ-Ú][a-zà-ú]+\s+Correia\b", "", text)
         cleaned = text_no_surnames.lower()
 
@@ -212,71 +216,22 @@ class PolicyEngine:
                     "Conforme a Seção 1 e Seção 7.1 do manual, a Empório da Música trabalha "
                     "EXCLUSIVAMENTE com instrumentos musicais completos para garantir atendimento especializado, "
                     "não comercializando acessórios como cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. "
-                    "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios. "
-                    "PROIBIÇÃO ESTRITA DE CONTEÚDO FORA DO DOMÍNIO: caso a mensagem também peça receitas culinárias, previsão do tempo ou assuntos não musicais, recuse em 1 frase curta e NUNCA liste ingredientes nem modo de preparo."
+                    "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios."
                 )
             }
         return None
 
-    def get_normative_reminders(self, text: str) -> List[str]:
-        """Classificador normativo pré-LLM: retorna lembretes de conformidade das seções críticas acionadas pelo texto."""
-        reminders: List[str] = []
-        acc_alert = self.check_out_of_scope_accessory(text)
-        if acc_alert:
-            reminders.append(acc_alert["policy_instruction"])
-
-        norm_t = normalize_text(text)
-
-        # Seção 7.3 — Promoções Expiradas
-        if any(kw in norm_t for kw in ["anuncio antigo", "black friday", "pascoa", "semana do musico", "liquidacao de inverno"]):
-            reminders.append(
-                "DIRETRIZ SEÇÃO 7.3 (Promoção Expirada): Confirme explicitamente que essa promoção anterior existiu mas JÁ EXPIROU/ENCERROU, mostre o preço atual vigente e destaque os 5% de desconto à vista no PIX."
-            )
-
-        # Seção 10 — Casos Omissos / Propostas Comerciais (usados, locação, atacado)
-        if any(kw in norm_t for kw in ["usado", "base de troca", "parte do pagamento", "parte de pagamento", "aluguel", "alugar", "locacao", "atacado", "cnpj", "escola"]):
-            reminders.append(
-                "DIRETRIZ SEÇÃO 10 (Disposições Finais): Explique que a loja trabalha apenas com venda de instrumentos novos (sem aluguel, usados na troca ou desconto extra além dos 5% no PIX), mas informe explicitamente que pode CONSULTAR A GERÊNCIA ((67) 3341-4444 / contato@emporiodamusica.com.br) para avaliar a proposta."
-            )
-
-        # Seções 4.4 e 8.3 — Itens Inelegíveis por Higiene e Exclusão por Desgaste Natural
-        if any(kw in norm_t for kw in ["boquilha", "palheta de sopro", "palhetas de sopro"]):
-            reminders.append(
-                "DIRETRIZ SEÇÕES 4.4 E 8.3: Informe expressamente que boquilhas de sopro NÃO têm troca/devolução por questões de higiene sanitária (Seção 4.4) e que palhetas/cordas/peles são itens de desgaste natural não cobertos pela garantia (Seção 8.3)."
-            )
-
-        # Seções 5.1 e 5.2 — Frete Interior e Instrumentos de Grande Porte
-        if any(kw in norm_t for kw in ["frete", "entrega", "bateria acustica", "baterias acusticas", "piano digital", "interior", "dourados", "tres lagoas", "corumba", "ponta pora"]):
-            reminders.append(
-                "DIRETRIZ SEÇÕES 5.1 E 5.2 (Frete e Grande Porte): Frete grátis acima de R$ 500,00 é EXCLUSIVO para Campo Grande. Para outras cidades, o envio é pago via PAC (5–12 dias úteis), SEDEX (2–5 dias úteis) ou Jadlog (3–8 dias úteis). Instrumentos de grande porte (baterias acústicas, pianos digitais e contrabaixos acústicos) exigem frete especial com cotação individual."
-            )
-
-        return reminders
-
     def retrieve_policies(self, query: str, specific_topic: Optional[str] = None) -> Dict[str, Any]:
         """Recupera as seções normativas mais relevantes com base em tópico ou termos de busca."""
-        # Checa primeiro se há menção a acessórios fora de escopo
         out_of_scope_alert = self.check_out_of_scope_accessory(query)
 
-        if specific_topic and specific_topic.lower() in self.sections:
-            sec = self.sections[specific_topic.lower()]
-            return {
-                "matched_topic": specific_topic.lower(),
-                "sections": [{
-                    "section_key": specific_topic.lower(),
-                    "title": sec["title"],
-                    "content": sec["content"]
-                }],
-                "out_of_scope_alert": out_of_scope_alert
-            }
-
-        # Busca baseada em pontuação de palavras-chave (tolerante a acentos)
         norm_query = normalize_text(query)
         q_tokens = set(re.findall(r"\w+", norm_query))
         scores: List[Tuple[str, int]] = []
+        topic_norm = specific_topic.lower() if specific_topic else None
 
         for key, sec in self.sections.items():
-            score = 0
+            score = 10 if (topic_norm and key == topic_norm) else 0
             # Pontuação por keywords cadastradas
             for kw in sec["keywords"]:
                 if normalize_text(kw) in norm_query:
@@ -292,11 +247,9 @@ class PolicyEngine:
         scores.sort(key=lambda x: x[1], reverse=True)
 
         if not scores:
-            # Fallback: retorna institucional, atendimento e disposições finais
             matched_keys = ["institucional", "atendimento_whatsapp", "disposicoes_finais"]
         else:
-            # Retorna até as 3 seções mais relevantes
-            matched_keys = [k for k, _ in scores[:3]]
+            matched_keys = [k for k, _ in scores[:4]]
 
         retrieved = []
         for k in matched_keys:
@@ -307,9 +260,12 @@ class PolicyEngine:
                 "content": sec["content"]
             })
 
-        return {
+        result: Dict[str, Any] = {
             "query": query,
             "total_sections_matched": len(retrieved),
             "sections": retrieved,
             "out_of_scope_alert": out_of_scope_alert
         }
+        if topic_norm and topic_norm in self.sections:
+            result["matched_topic"] = topic_norm
+        return result

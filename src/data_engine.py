@@ -569,7 +569,7 @@ class DataEngine:
             """, (name_term,))
             product = cur.fetchone()
 
-            # Fallback de busca por tokens normalizados (ex: 'Kala Barítono Cedar (KA-ABP-CTG)' -> 'Kala KA-ABP-CTG Barítono Cedar')
+            # Fallback de busca por tokens normalizados quando a ordem dos termos diverge do cadastro
             if not product:
                 stopwords = {"violao", "violoes", "ukulele", "ukuleles", "guitarra", "guitarras", "baixo", "baixos", "bateria", "teclado", "de", "do", "da", "com", "para"}
                 q_tokens = [t for t in re.findall(r"[a-z0-9]+", normalize_text(str(product_id_or_name))) if t not in stopwords and len(t) >= 2]
