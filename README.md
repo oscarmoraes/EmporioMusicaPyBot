@@ -81,15 +81,17 @@ A exploração detalhada dos dados fornecidos no teste técnico revelou desafios
 | # | Situação Especial Encontrada | Evidência no Dataset (`data/*`) | Tratamento Implementado no Agente |
 | :- | :--- | :--- | :--- |
 | **1** | **Produto Ativo sem Estoque** | `ID=96` (*Giannini GF-3D*, R$ 799,90) tem `status='active'`, mas `stock_quantity=0`. | A ferramenta separa o produto dos disponíveis regulares. O agente cumpre a **Seção 7.3 do Manual**: informa com empatia a indisponibilidade temporária e sugere automaticamente similares disponíveis (*Tagima Dallas* ou *Shelby SGD-195E*). |
-| **2** | **Descontinuado COM Estoque (Ponta de Estoque)** | `ID=136` (*Ibanez Bass 2X*, R$ 441,00) tem `status='discontinued'`, mas **13 unidades em estoque**. | Em vez de bloquear a venda ou ocultar o produto, o agente trata o caso como **Oportunidade Comercial de Ponta de Estoque (Últimas Unidades)**: avisa com transparência que o modelo saiu de linha pelo fabricante (sem reposição futura), aplica gatilho de oportunidade pelo preço excelente e lista também modelos da linha atual para comparação. |
+| **2** | **Descontinuado COM Estoque (Decisão D2 — Últimas Unidades)** | `ID=136` (*Ibanez Bass 2X*, R$ 441,00) tem `status='discontinued'`, mas **13 unidades em estoque**. | Em vez de bloquear a venda, o agente trata como **Últimas Unidades de Modelo Fora de Linha**: informa com transparência que o modelo saiu de linha pelo fabricante (sem reposição futura), destaca o preço de oportunidade e lista modelos atuais para comparação. |
 | **3** | **Descontinuado SEM Estoque** | `ID=113` (*Shelby SN-7C 7 Cordas*) tem `status='discontinued'` e `stock_quantity=0`. | O agente informa que o modelo não faz mais parte do catálogo regular e sugere modelos sucessores ativos (*Tagima TW-7 7 Cordas* ou *Rozini RV-174*). |
 | **4** | **Promoção Ativa & Filtros de Preço** | `ID=90` (*Crafter HT-100*) tem preço de tabela R$ 2.399,00, mas promoção ativa de 18% (`is_active=1`), caindo para **R$ 1.967,18**. | A busca de catálogo filtra sobre o `effective_price`. Se o cliente busca "violões até R$ 2.000", o Crafter é corretamente incluído. O retorno exibe preço de tabela, desconto e valor final. |
 | **5** | **Veto a Desconto Cumulativo no PIX** | Seção 6.2 do Manual: *"O desconto de PIX (5%) não se aplica sobre preços já promocionais."* | O calculador financeiro verifica `has_active_promo`. Para o *Crafter HT-100*, o PIX permanece R$ 1.967,18 (bloqueia acúmulo). Para produtos sem promoção (ex: *Takamine GD20* de R$ 2.199,00), o PIX aplica os 5% caindo para R$ 2.089,05. |
 | **6** | **21 Promoções Expiradas no Histórico** | Promoções de Black Friday, Páscoa e Semana do Músico com `is_active=0` no CSV. | Caso o cliente pergunte sobre um desconto antigo, o agente consulta o histórico expirado e cumpre a Seção 7.3: esclarece com transparência que a campanha venceu e apresenta o valor regular. |
 | **7** | **Categorias Sem Itens Cadastrados** | Categorias 6 (Sopro Madeiras), 7 (Sopro Metais) e 8 (Cordas Orquestrais) constam em `categories.csv`, mas possuem 0 produtos em `products.csv`. | Se o cliente buscar saxofone ou violino, o agente esclarece que a categoria pertence à loja, porém está temporariamente sem modelos cadastrados no estoque físico atual (diferenciando de acessórios, que a loja não vende). |
 | **8** | **Itens Fora de Escopo (Acessórios)** | Clientes pedindo cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. | O `PolicyEngine` detecta os termos e instrui o agente a recusar educadamente, explicando o foco exclusivo em instrumentos e sugerindo lojas parceiras (Seções 1 e 7.1). |
-| **9** | **Contradição de Parcelamento no Manual** | A Tabela da Seção 3 diz parcela mínima de R$ 100, mas a Seção 3.1 detalha: até 3x (mín. R$ 50), 4x a 6x (mín. R$ 80) e 7x a 12x (mín. R$ 100). | O motor aplica a regra detalhada da Seção 3.1 (escada progressiva de parcelas mínimas) e disponibiliza as parcelas matematicamente válidas. |
+| **9** | **Contradição de Parcelamento no Manual (Decisão D1)** | A Tabela da Seção 3 diz parcela mínima de R$ 100, mas a Seção 3.1 detalha: até 3x (mín. R$ 50), 4x a 6x (mín. R$ 80) e 7x a 12x (mín. R$ 100). | O motor aplica a regra detalhada da Seção 3.1 (escada progressiva de parcelas mínimas) e disponibiliza as parcelas matematicamente válidas (ex.: R$ 900,00 permite no máximo 9x de R$ 100,00). |
 | **10** | **Análise de Prazos CDC para Devoluções** | Pedidos no histórico variam de out/2025 a mar/2026. | Fixamos a data de referência `REFERENCE_DATE = 2026-03-25` (logo após o último pedido). Ao consultar um pedido entregue (ex.: Pedido #1 de Pedro Henrique), o sistema calcula os dias decorridos (151 dias) e embasa juridicamente que o prazo de 7 dias de arrependimento (Art. 49 CDC) expirou. |
+| **11** | **Privacidade e Identificação de Pedidos (LGPD — Decisão D3)** | Clientes informando apenas nome ou solicitando status sem identificador único. | Para evitar vazamento de dados pessoais entre homônimos no CRM, a ferramenta `lookup_customer_orders` exige estritamente o número do pedido (`order_id`). Se omitido, o agente solicita o número e nunca busca por nome/e-mail/telefone, além de omitir telefone, e-mail e cidade do payload. |
+| **12** | **Fronteira de Frete Local (§5.1)** | Manual define frete grátis para pedidos 'acima de R$ 500,00' em Campo Grande. | Adotamos a interpretação estrita: pedidos até R$ 500,00 pagam taxa fixa de R$ 35,00; frete grátis aplica-se apenas quando o valor estritamente ultrapassa R$ 500,00 (`effective_price > 500.0`). |
 
 ---
 
@@ -202,44 +204,39 @@ O edital exige entre 3 e 5 conversas documentadas no repositório cobrindo cená
 
 ---
 
-## 7. Testes Automatizados (40 Casos) & Avaliação Adversarial do Agente
+## 7. Testes Automatizados (42 Casos) & Benchmark Reproduzível
 
-O projeto inclui uma suíte de **40 testes unitários e de integração** com `pytest` cobrindo toda a camada de dados, cálculos financeiros, logística e normas do CDC/LGPD, além de **37 cenários interativos** de 1 clique na barra lateral do Streamlit (`app.py`):
+O projeto inclui uma suíte de **42 testes unitários e de integração** com `pytest` cobrindo o banco relacional SQLite, o motor financeiro de parcelamento e PIX, a logística de frete, o direito de arrependimento (Art. 49 CDC), a garantia legal, a proteção de dados (LGPD) e a extração real do PDF:
 
 ```bash
-pytest -v tests/test_engine.py
+python -m pytest -v tests/test_engine.py
 ```
 
 ### Baterias de Teste Cobertas (`tests/test_engine.py`):
-- **Núcleo Base (10 testes):** normalização textual, busca de catálogo com teto de preço, promoções ativas, veto a PIX cumulativo, desconto PIX regular, ponta de estoque (`Ibanez Bass 2X`), escada de parcelamento sem juros, pedidos/devolução CDC, categorias sem estoque e detecção de acessórios fora de escopo;
+- **Núcleo Base (10 testes):** normalização textual, busca de catálogo com teto de preço, promoções ativas, veto a PIX cumulativo, desconto PIX regular, ponta de estoque (`Ibanez Bass 2X` - Decisão D2), escada de parcelamento sem juros do §3.1 e teto de 9x para R$ 900 (Decisão D1), fronteira de frete de R$ 500 exatos, busca de pedidos por `order_id` obrigatório sem exposição de PII (Decisão D3), categorias sem estoque e detecção de acessórios fora de escopo;
 - **Bateria A — Consultoria Musical & Catálogo Avançado (Casos 01 a 04):** violões de 7 cordas (descontinuado `Shelby SN-7C` vs sucessores ativos), esgotado `Giannini GF-3D` com similares, lançamento em pré-venda (`coming_soon` `Kala Barítono Cedar`) e equipamentos profissionais de estúdio acima de R$ 10.000,00;
 - **Bateria B — Finanças, Parcelamento & Promoções Expiradas (Casos 05 a 08):** transparência em promoções encerradas (Black Friday e Páscoa), trava de parcela mínima em itens de menor valor (`Shelby Soprano`), regra de pagamento combinado PIX + Cartão (limite de R$ 2.000,00) e impacto de desconto promocional sobre a faixa de frete grátis em Campo Grande (`Ohana CK-20`);
-- **Bateria C — Logística & Situações Críticas de Entrega (Casos 09 a 12):** pedido em trânsito com prazo estimado vencido e protocolo de reclamação de 24h úteis (`Order #8`), pedido pendente aguardando item em pré-venda (`Order #14`), pedido multi-itens de alto valor (`Order #15`) e múltiplos pedidos do mesmo cliente com cancelamento por endereço inválido (`Order #20`);
+- **Bateria C — Logística & Situações Críticas de Entrega (Casos 09 a 12):** pedido em trânsito com prazo estimado vencido e protocolo de reclamação de 24h úteis (`Order #8`), pedido pendente aguardando item em pré-venda (`Order #14`), pedido multi-itens de alto valor (`Order #15`) e múltiplos pedidos por `order_id` com cancelamento por endereço inválido (`Order #20` e `Order #2`);
 - **Bateria D — Trocas, Devoluções CDC & Garantias (Casos 13 a 16):** defeito após os 30 dias da loja mas dentro dos 90 dias da Garantia Legal CDC (`Order #7`), itens inelegíveis para troca (setup sob encomenda, venda final e boquilhas de sopro), perda de garantia por reparo em luthier não autorizado/desgaste natural e recusa no ato por avaria no transporte;
 - **Bateria E — LGPD, Expediente & Guardrails Avançados (Casos 17 a 20):** exclusão de dados pessoais pela LGPD, atendimento fora de expediente aos domingos/horário de sábado, pedidos mistos (acessórios proibidos + guitarra `Fender Telecaster`) e escalonamento à gerência para propostas comerciais não previstas no manual (instrumento usado na troca e aluguel);
-- **Bateria F — Casos Avançados de Borda (Casos 21 a 30):** promoção ativa que reduz o preço abaixo do teto de pagamento combinado (`Crafter HT-100` de R$ 2.399 por R$ 1.967,18), homônimos/e-mail duplicado no CRM com frete para o interior (`Três Lagoas`), histórico duplo de boleto vencido (`#19`) + garantia após 90 dias (`#1`), pedido cancelado por falta de estoque na época mas com produto disponível hoje (`Rozini RC-104`), troca por preferência com diferença de valor, comparativo de baterias acústicas com frete de grande porte (`Dourados`), sintetizadores (`Korg`, `Roland`, `Nord`), categorias de orquestra/sopro e compra institucional em lote (`5x Yamaha C40` para escola de música).
+- **Bateria F — Casos Avançados de Borda (Casos 21 a 30):** promoção ativa que reduz o preço abaixo do teto de pagamento combinado (`Crafter HT-100` de R$ 2.399 por R$ 1.967,18), bloqueio de consulta de pedido sem `order_id` (Decisão D3), histórico de boleto vencido (`#19`) e garantia expirada (`#1`), pedido cancelado por falta de estoque na época com produto disponível hoje (`Rozini RC-104`), troca por preferência com diferença de valor, comparativo de baterias acústicas com frete de grande porte (`Dourados`), sintetizadores (`Korg`, `Roland`, `Nord`), categorias de orquestra/sopro e compra institucional em lote (`5x Yamaha C40` para escola de música);
+- **Bateria G — Extração do PDF e Contratos de Ferramentas (Casos 31 e 32):** extração real das 10 seções do arquivo `políticas_da_loja.pdf` via `pypdf`, normalização de cabeçalhos e verificação estrita de que `lookup_customer_orders` exige `order_id` e oculta telefone, e-mail e cidade do cliente.
 
-### Avaliação Empírica: Cenários Canônicos, Variações Coloquiais e Benchmark de Modelos
-Além dos testes determinísticos, submetemos o agente completo a três experimentos empíricos ponta a ponta:
-1. **35 Cenários Canônicos com `gpt-4o-mini` (5 do edital + 30 das Baterias A–F):** **100% de aderência** aos fatos do banco de dados, cálculos de parcelamento/PIX e políticas da loja, com latência média de **~3,1s por resposta**.
-2. **35 Variações Adversariais/Coloquiais de WhatsApp (`gpt-4o-mini`):** Reescrevemos os mesmos 35 cenários usando gírias musicais (*"pegar no rolo"*, *"quinhentão no pix de sinal"*, *"batera"*, *"mizinha arrebentou"*, *"print salvo do ano passado"*), abreviações e ordens frasais invertidas para auditar a generalização semântica do agente sem depender de palavras-chave fixas, orientando melhorias nos contratos das Tools (`src/tools.py`) e no enriquecimento de alternativas similares (`src/data_engine.py`).
-3. **Benchmark Comparativo e Engenharia de Otimização para Modelo Nano (`gpt-5-nano` vs. `gpt-4o-mini`):**
-   - Modelos legados de entrada (`gpt-3.5-turbo` e `gpt-4.1-nano`) já encontram-se descontinuados na API da OpenAI (*HTTP 404 Deprecated*). Executamos os mesmos 35 cenários no modelo ativo da classe **Nano** (**`gpt-5-nano`**), primeiro em sua configuração padrão (*baseline*) e depois aplicando **4 intervenções arquiteturais específicas para modelos Nano**:
-     1. **Controle de Orçamento de Raciocínio (`reasoning_effort="low"`):** Redução dos tokens internos de raciocínio para perguntas transacionais de WhatsApp (`src/agent.py`).
-     2. **Payloads *Single-Hop* e *Context Pruning* (`src/data_engine.py`):** Inclusão de `pix_price` diretamente nos resultados de `search_catalog` (evitando chamadas redundantes em loop a `get_product_details_and_pricing`) e omissão de planos de pagamento/PIX quando `stock_quantity == 0` ou `status == "coming_soon"` (impedindo que modelos menores vazem o preço PIX de itens esgotados).
-     3. **Guardrail Negativo Estrito contra *Literal Instruction Following* (`src/agent.py` e `src/policy_engine.py`):** Proibição explícita de redigir receitas culinárias ou listas fora do domínio (no *baseline*, o `gpt-5-nano` havia escrito uma receita completa de bolo de milho no `CASE_19`).
-     4. **Restrição de Concisão e Sanitização Determinística de Saída:** Limite de extensão para leitura fluida no celular e correção pós-processamento de domínio oficial (`contato@emporiodamusica.com.br`).
-   - **Resultado Comparativo nos 35 Cenários (`gpt-4o` Flagship vs. `gpt-4o-mini` Padrão vs. `gpt-5-nano`):**
+---
 
-| Métrica (35 Cenários End-to-End) | `gpt-4o` (Superior / Flagship) | `gpt-4o-mini` (Padrão Recomendado) | `gpt-5-nano` (Baseline) | `gpt-5-nano` (Pós-Otimização Arquitetural) |
-| :--- | :---: | :---: | :---: | :---: |
-| **Precisão Funcional (35 casos)** | **35/35 (100%)** | **35/35 (100%)** | 29/35 (82,8%) | **34/35 (97,1%)** |
-| **Latência Média por Turno** | **3,46 s** | **3,36 s** | 25,14 s | **6,41 s (-74,5%)** |
-| **Latência Máxima (Pior Caso)** | **7,51 s** | **8,05 s** | 47,36 s | **10,03 s (-78,8%)** |
-| **Total de *Tool Calls* (35 casos)** | **47** | **45** | 65 | **51 (-21,5%)** |
-| **Extensão Média da Resposta** | **124,9 palavras** | **~165 palavras** | 311,3 palavras | **224,0 palavras (-28,0%)** |
-| **Guardrail `CASE_19` (Bolo de Milho)** | ✅ Recusou com concisão | ✅ Recusou com humor | ❌ Escreveu a receita inteira | ✅ **Recusou em 1 frase curta** |
-| **Vazamento PIX Item Esgotado (`CASES 01/02`)** | ✅ Sem vazamento | ✅ Sem vazamento | ❌ Citou PIX do item sem estoque | ✅ **100% eliminado (*Context Pruning*)** |
+### Benchmark de Avaliação Automatizada (`scripts/evaluate_agent.py`)
+
+Para auditar o agente de forma reproduzível em cenários ponta a ponta, implementamos o script `scripts/evaluate_agent.py`. Ele avalia a acurácia factual, a chamada correta das ferramentas, a ausência de dados sensíveis e guardrails de escopo:
+
+```bash
+python scripts/evaluate_agent.py --model gpt-4o-mini
+```
+
+**Resultado consolidado reproduzível (`scripts/benchmark_results.json`):**
+- **Acurácia Funcional:** 10/10 cenários aprovados (100.0%)
+- **Latência Média:** ~3,5 s por turno
+- **Privacidade (LGPD / D3):** 100% de conformidade (zero vazamento de PII)
+- **Guardrail de Escopo:** 100% de recusa de acessórios e temas fora de domínio
 
 ---
 

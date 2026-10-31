@@ -101,7 +101,7 @@ def test_installment_ladder_rules(data_engine):
         n = plan["installments"]
         val = plan["installment_value"]
         if n <= 3:
-            assert val >= 50.0 or n == 1
+            assert val >= 50.0
         elif 4 <= n <= 6:
             assert val >= 80.0
         elif 7 <= n <= 12:
@@ -110,22 +110,41 @@ def test_installment_ladder_rules(data_engine):
     # Não deve permitir parcelas que violem o piso mínimo
     assert max_inst <= 4
 
+    # Produto de R$ 900,00: 9x de R$ 100,00 é permitido (>= 100), 10x de R$ 90,00 violaria piso da faixa 7-12
+    p900 = data_engine.calculate_payment_plans(900.0, 900.0, False)
+    assert p900["credit_card"]["max_installments_without_interest"] == 9
+
+    # Teste de fronteira de frete: R$ 500,00 exatos exige R$ 35,00 de frete em Campo Grande
+    p500 = data_engine.calculate_payment_plans(500.0, 500.0, False)
+    assert p500["shipping_campo_grande"]["free_shipping"] is False
+    assert p500["shipping_campo_grande"]["shipping_fee"] == 35.0
+
 
 def test_customer_order_lookup_and_cdc_returns(data_engine):
-    """Valida busca de pedidos por cliente e contagem de prazo para devolução por arrependimento."""
-    # Pedro Henrique Oliveira (customer_id=3)
-    orders = data_engine.lookup_orders(customer_query="Pedro Henrique")
-    assert orders["found"] is True
-    assert orders["total_orders"] >= 2
+    """Valida busca de pedidos por order_id obrigatório e contagem de prazo para devolução por arrependimento."""
+    # Chamada sem order_id deve falhar (Decisão D3 / LGPD)
+    sem_id = data_engine.lookup_orders()
+    assert sem_id["found"] is False
+    assert sem_id["error"] == "order_id_required"
 
     # Pedido 1: entregue em out/2025 -> prazo de 7 dias de arrependimento expirado em 25/03/2026
-    ord1 = [o for o in orders["orders"] if o["order_id"] == 1][0]
+    res1 = data_engine.lookup_orders(order_id=1)
+    assert res1["found"] is True
+    ord1 = res1["orders"][0]
     assert ord1["status"] == "delivered"
     assert ord1["return_and_warranty_analysis"]["eligible_for_7d_regret_return"] is False
     assert "PRAZO EXPIRADO" in ord1["return_and_warranty_analysis"]["regret_status"]
 
+    # Valida que dados sensíveis PII (telefone, email, cidade) foram removidos do retorno
+    cust = ord1["customer"]
+    assert "phone" not in cust
+    assert "email" not in cust
+    assert "city" not in cust
+
     # Pedido 19: cancelado por falta de pagamento
-    ord19 = [o for o in orders["orders"] if o["order_id"] == 19][0]
+    res19 = data_engine.lookup_orders(order_id=19)
+    assert res19["found"] is True
+    ord19 = res19["orders"][0]
     assert ord19["status"] == "cancelled"
     assert "Pagamento" in ord19["notes"]
 
@@ -278,7 +297,7 @@ def test_case_10_pedido_pendente_por_item_coming_soon(data_engine):
 
 def test_case_11_pedido_multi_itens_alto_valor_aline(data_engine):
     """Caso 11: Pedido #15 (Aline Borges) possui 2 instrumentos somando R$ 8.348,00 e está pendente."""
-    res = data_engine.lookup_orders(customer_query="Aline Borges")
+    res = data_engine.lookup_orders(order_id=15)
     ord15 = res["orders"][0]
     assert ord15["order_id"] == 15
     assert len(ord15["items"]) == 2
@@ -287,10 +306,14 @@ def test_case_11_pedido_multi_itens_alto_valor_aline(data_engine):
 
 
 def test_case_12_pedidos_multiplos_thiago_endereco_invalido(data_engine):
-    """Caso 12: Cliente Thiago Barbosa Lima tem Pedido #2 (entregue) e Pedido #20 (cancelado por endereço inválido)."""
-    res = data_engine.lookup_orders(customer_query="Thiago Barbosa")
-    assert res["total_orders"] == 2
-    ord20 = [o for o in res["orders"] if o["order_id"] == 20][0]
+    """Caso 12: Pedido #2 (entregue) e Pedido #20 (cancelado por endereço inválido de Thiago Barbosa Lima)."""
+    res2 = data_engine.lookup_orders(order_id=2)
+    assert res2["found"] is True
+    assert res2["orders"][0]["status"] == "delivered"
+
+    res20 = data_engine.lookup_orders(order_id=20)
+    assert res20["found"] is True
+    ord20 = res20["orders"][0]
     assert ord20["status"] == "cancelled"
     assert "inválido" in ord20["notes"]
 
@@ -383,30 +406,36 @@ def test_case_21_desconto_ativo_crafter_ht100_derruba_pagamento_combinado(data_e
     assert prod["payment_conditions"]["combined_payment"]["allowed"] is False
 
 
-def test_case_22_homonimos_bruno_martins_e_pedido_10_confirmado_tres_lagoas(data_engine):
-    """Caso 22: Busca por 'Bruno Martins' ou e-mail duplicado localiza o Pedido #10 (confirmed, R$ 8.732, Três Lagoas)."""
-    res_email = data_engine.lookup_orders(customer_query="bruno.martins@jmail.com")
-    assert res_email["found"] is True
-    assert res_email["orders"][0]["order_id"] == 10
-    assert res_email["orders"][0]["status"] == "confirmed"
-    assert res_email["orders"][0]["customer"]["city"] == "Três Lagoas"
+def test_case_22_pedido_10_confirmado_e_bloqueio_busca_sem_order_id(data_engine):
+    """Caso 22: Pedido #10 (confirmed, R$ 8.732) e validação de bloqueio de busca sem order_id (D3 / LGPD)."""
+    res_sem_id = data_engine.lookup_orders()
+    assert res_sem_id["found"] is False
+    assert res_sem_id["error"] == "order_id_required"
 
-    res_name = data_engine.lookup_orders(customer_query="Bruno Martins")
-    assert res_name["found"] is True
-    assert res_name["orders"][0]["order_id"] == 10
+    res10 = data_engine.lookup_orders(order_id=10)
+    assert res10["found"] is True
+    o10 = res10["orders"][0]
+    assert o10["order_id"] == 10
+    assert o10["status"] == "confirmed"
+    assert "phone" not in o10["customer"]
+    assert "email" not in o10["customer"]
+    assert "city" not in o10["customer"]
 
 
 def test_case_23_historico_duplo_pedro_oliveira_boleto_cancelado_e_garantia_expirada(data_engine):
-    """Caso 23: Pedro Henrique Oliveira possui Pedido #1 (entregue há 151 dias, fora dos 90d) e Pedido #19 (boleto não confirmado)."""
-    res = data_engine.lookup_orders(customer_query="Pedro Oliveira")
-    assert res["found"] is True
-    assert res["total_orders"] == 2
-    by_id = {o["order_id"]: o for o in res["orders"]}
-    assert by_id[19]["status"] == "cancelled"
-    assert "Pagamento não confirmado" in by_id[19]["notes"]
-    assert by_id[1]["status"] == "delivered"
-    assert by_id[1]["return_and_warranty_analysis"]["days_since_estimated_delivery"] == 151
-    assert by_id[1]["return_and_warranty_analysis"]["within_90d_legal_warranty"] is False
+    """Caso 23: Pedidos #1 (entregue há 151 dias, fora dos 90d) e #19 (boleto não confirmado) de Pedro Henrique Oliveira."""
+    res1 = data_engine.lookup_orders(order_id=1)
+    assert res1["found"] is True
+    o1 = res1["orders"][0]
+    assert o1["status"] == "delivered"
+    assert o1["return_and_warranty_analysis"]["days_since_estimated_delivery"] == 151
+    assert o1["return_and_warranty_analysis"]["within_90d_legal_warranty"] is False
+
+    res19 = data_engine.lookup_orders(order_id=19)
+    assert res19["found"] is True
+    o19 = res19["orders"][0]
+    assert o19["status"] == "cancelled"
+    assert "Pagamento não confirmado" in o19["notes"]
 
 
 def test_case_24_pedido_18_cancelado_sem_estoque_mas_rozini_rc104_disponivel_hoje(data_engine):
@@ -492,5 +521,38 @@ def test_case_30_compra_lote_escola_yamaha_c40_e_escalonamento_atacado(data_engi
     pol = policy_engine.retrieve_policies("desconto de atacado para CNPJ escola de música lote")
     sec_keys = [s["section_key"] for s in pol["sections"]]
     assert "disposicoes_finais" in sec_keys
+
+
+def test_policy_engine_real_pdf_extraction(policy_engine):
+    """Valida a extração real das 10 seções do PDF 'políticas_da_loja.pdf' e normalização."""
+    assert len(policy_engine.sections) == 10
+    # Verifica que todas as seções extraíram texto do PDF
+    for key, sec in policy_engine.sections.items():
+        assert "pdf_extracted_text" in sec
+        assert len(sec["pdf_extracted_text"]) > 40
+        # Nenhum typo com acento no domínio
+        assert "empóriodamusica" not in sec["content"]
+
+
+def test_lookup_orders_tool_enforces_d3(data_engine, policy_engine):
+    """Valida que a ferramenta de pedido exige order_id e remove dados sensíveis (D3 / LGPD)."""
+    from src.tools import execute_tool
+
+    # Chamada sem order_id
+    res_err = execute_tool("lookup_customer_orders", {}, data_engine, policy_engine)
+    assert res_err["found"] is False
+    assert res_err["error"] == "order_id_required"
+
+    # Chamada com order_id válido
+    res_ok = execute_tool("lookup_customer_orders", {"order_id": 1}, data_engine, policy_engine)
+    assert res_ok["found"] is True
+    assert len(res_ok["orders"]) == 1
+    cust = res_ok["orders"][0]["customer"]
+    assert cust["customer_id"] == 3
+    assert cust["name"] == "Pedro Henrique Oliveira"
+    assert "phone" not in cust
+    assert "email" not in cust
+    assert "city" not in cust
+
 
 

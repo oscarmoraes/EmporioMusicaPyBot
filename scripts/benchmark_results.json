@@ -1,0 +1,163 @@
+{
+  "model": "gpt-4o-mini",
+  "total_scenarios": 10,
+  "passed_count": 10,
+  "accuracy_percent": 100.0,
+  "avg_latency_seconds": 3.5,
+  "max_latency_seconds": 8.06,
+  "total_tool_calls": 12,
+  "avg_word_count": 135.3,
+  "details": [
+    {
+      "id": "CENARIO_01_CATALOGO_1000",
+      "description": "Busca de violões até R$ 1000 com separação de esgotados e descontinuados",
+      "passed": true,
+      "latency_seconds": 8.06,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "search_products_catalog"
+      ],
+      "word_count": 396,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "E aí! Aqui estão algumas opções de violões disponíveis até R$ 1.000,00:\n\n1. **Tagima Memphis AC-39 Nylon Natural**\n   - **Preço:** R$ 429,90 (ou R$ 408,40 no PIX)\n   - **Descrição:** Violão clássico com cordas de nylon, ideal para iniciantes. Corpo leve e confortável.\n   - **Estoque:** 15 unidades\n\n2. **Rozini RC-104 Nylon Estudante**\n   - **Preço:** R$ 459,90 (ou R$ 436,90 no PIX)\n   - **Descrição:** Violão clássico de estudo, feito com madeiras nacionais. Ótimo acabamento.\n   - **Estoque:** 10 unidades\n\n3. **Shelby SN-100 Folk Aço Preto**\n   - **Preço:** R$ 549,00 (ou R$ 521,55 no PIX)\n   - **Descrição:** Violão folk aço com visual moderno. Versátil e com boa relação custo-benefício.\n   - **Estoque:** 5 unidades\n\n4. **Giannini GF-1R Aço Folk Sunburst**\n   - **Preço:** R$ 579,90 (ou R$ 550,90 no PIX)\n   - **Descrição:** Violão folk com tampo em Spruce e acabamento Sunburst. Som equilibrado.\n   - **Estoque:** 7 unidades\n\n5. **Yamaha C40 Nylon Natural**\n   - **Preço:** R$ 599,90 (ou R$ 569,90 no PIX)\n   - **Descrição:** Violão clássico com excelente projeção sonora, ideal para estudantes.\n   - **Estoque:** 12 unidades\n\n6. **Giannini GN-15 Nylon Cedr Natural**\n   - **Preço:** R$ 689,00 (ou R$ 654,55 no PIX)\n   - **Descrição:** Violão clássico com sonoridade quente, excelente para estudantes avançados.\n   - **Estoque:** 6 unidades\n\n7. **Yamaha F310 Aço Natural**\n   - **Preço:** R$ 699,90 (ou R$ 664,90 no PIX)\n   - **Descrição:** Violão folk com corpo robusto e timbre encorpado, ideal para iniciantes.\n   - **Estoque:** 14 unidades\n\n8. **Tagima Dallas Tuner Aço Natural**\n   - **Preço:** R$ 749,00 (ou R$ 711,55 no PIX)\n   - **Descrição:** Violão folk com afinador integrado, ideal para acompanhamento vocal.\n   - **Estoque:** 9 unidades\n\n9. **Shelby SGD-195E Elétrico Aço Sunburst**\n   - **Preço:** R$ 799,00 (ou R$ 759,05 no PIX)\n   - **Descrição:** Violão eletroacústico com captação e afinador integrado.\n   - **Estoque:** 6 unidades\n\n10. **Yamaha C70 Nylon Natural**\n    - **Preço:** R$ 849,00 (ou R$ 806,55 no PIX)\n    - **Descrição:** Violão clássico de nível intermediário com tampo em Spruce sólido.\n    - **Estoque:** 8 unidades\n\n11. **Tagima Woodstock Dreadnought Natural**\n    - **Preço:** R$ 899,00 (ou R$ 854,05 no PIX)\n    - **Descrição:** Violão dreadnought com corpo amplo e som potente.\n    - **Estoque:** 11 unidades\n\n12. **Tagima TW-7 7 Cordas Aço Natural**\n    - **Preço:** R$ 999,00 (ou R$ 949,05 no PIX)\n    - **Descrição:** Violão 7 cordas com projeção extra, ideal para estilos variados.\n    - **Estoque:** 6 unidades\n\nSe precisar de mais informações sobre algum modelo ou ajuda com outra coisa, é só avisar! 🎶"
+    },
+    {
+      "id": "CENARIO_02_PRECO_TAKAMINE_PIX",
+      "description": "Preço do Takamine GD20 sem promoção, com 5% de desconto no PIX",
+      "passed": true,
+      "latency_seconds": 3.24,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "get_product_details_and_pricing"
+      ],
+      "word_count": 117,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Olá! O violão **Takamine GD20 Dreadnought Natural** está disponível por **R$ 2.199,00**. Ele é um modelo excelente, com tampo sólido em cedro, ideal para fingerstyle, oferecendo um timbre quente e definido.\n\n### Formas de pagamento:\n- **À vista no PIX:** R$ 2.089,05 (5% de desconto).\n- **À vista no débito:** R$ 2.199,00.\n- **À vista no boleto:** R$ 2.199,00 (compensação em até 3 dias úteis).\n- **Cartão de crédito:** Até 12x sem juros, com parcelas a partir de R$ 183,25.\n\nAlém disso, o frete é grátis para Campo Grande em pedidos acima de R$ 500,00, com entrega por motoboy em 1 a 3 dias úteis.\n\nSe precisar de mais alguma informação ou ajuda, é só avisar! 🎶"
+    },
+    {
+      "id": "CENARIO_03_PROMO_CRAFTER_SEM_PIX_CUMULATIVO",
+      "description": "Crafter HT-100 em promoção de 18% não acumula desconto de PIX (Seção 6.2)",
+      "passed": true,
+      "latency_seconds": 3.06,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "get_product_details_and_pricing"
+      ],
+      "word_count": 107,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Olá! O violão **Crafter HT-100 Folk Aço Natural** está disponível e em promoção! O preço original é de **R$ 2.399,00**, mas com o desconto ativo de **18%**, você pode levar por apenas **R$ 1.967,18**.\n\nSobre o pagamento via PIX, o desconto de 5% não é cumulativo com a promoção atual, então o valor permanece em **R$ 1.967,18**. \n\nAqui estão algumas especificações do violão:\n- Tampo: Spruce Engelmann Sólido\n- Fundo e laterais: Mogno\n- Braço: Mogno\n- Cordas: Aço\n- Escala: 648mm\n- Cor: Natural\n\nE o melhor, o frete é grátis para Campo Grande! Se precisar de mais alguma informação ou ajuda, é só avisar! 🎶"
+    },
+    {
+      "id": "CENARIO_04_STATUS_SEM_ID_REGRA_D3",
+      "description": "Consulta de status informando apenas nome deve solicitar número do pedido (D3 / LGPD)",
+      "passed": true,
+      "latency_seconds": 0.96,
+      "tool_calls_count": 0,
+      "tools_called": [],
+      "word_count": 23,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Oi, Pedro! Para eu poder verificar os seus pedidos, preciso que você me informe o número do pedido. Assim, consigo te ajudar direitinho!"
+    },
+    {
+      "id": "CENARIO_05_PEDIDO_1_ARREPENDIMENTO_CDC",
+      "description": "Pedido #1 entregue há mais de 7 dias com prazo de arrependimento expirado",
+      "passed": true,
+      "latency_seconds": 3.36,
+      "tool_calls_count": 2,
+      "tools_called": [
+        "lookup_customer_orders",
+        "consult_store_policies"
+      ],
+      "word_count": 130,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Oi, Pedro Henrique! \n\nSobre o seu pedido #1, que inclui o violão Martin D-28, ele foi entregue em 15 de outubro de 2025. Infelizmente, o prazo para devolução por arrependimento já expirou, pois você pode solicitar a devolução apenas em até 7 dias corridos após o recebimento do produto. Como já se passaram 151 dias, não será possível realizar a devolução.\n\nAqui estão os detalhes da política de devolução que se aplicam:\n\n- **Direito de Arrependimento:** O cliente pode solicitar a devolução em até 7 dias corridos após o recebimento, sem necessidade de justificativa.\n- **Frete de Devolução:** 100% por conta da loja.\n- **Reembolso:** Realizado na mesma forma de pagamento original em até 10 dias úteis.\n\nSe você tiver alguma dúvida ou precisar de mais ajuda, estou à disposição!"
+    },
+    {
+      "id": "CENARIO_06_ENDERECO_HORARIOS_FRETE",
+      "description": "Informações de endereço, horários de funcionamento e regras de frete",
+      "passed": true,
+      "latency_seconds": 3.85,
+      "tool_calls_count": 3,
+      "tools_called": [
+        "consult_store_policies",
+        "consult_store_policies",
+        "consult_store_policies"
+      ],
+      "word_count": 105,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Oi! Aqui estão as informações que você pediu:\n\n**Endereço da loja:**\nRua 14 de Maio, 3200 — Centro, Campo Grande - MS, CEP 79202-333.\n\n**Horário de atendimento:**\n- Segunda a Sexta-feira: 09:00 às 18:00\n- Sábado: 09:00 às 13:00\n- Domingo e Feriados: Fechado\n\n**Entrega em Campo Grande:**\nSim, fazemos entregas na região metropolitana de Campo Grande! O frete é grátis para pedidos acima de R$ 500,00 e há uma taxa fixa de R$ 35,00 para pedidos até esse valor. O prazo de entrega é de 1 a 3 dias úteis.\n\nSe precisar de mais alguma coisa ou tiver mais perguntas, é só avisar! 🎶"
+    },
+    {
+      "id": "CENARIO_07_RECUSA_ACESSORIOS",
+      "description": "Guardrail contra acessórios avulsos (Seção 1 e 7.1)",
+      "passed": true,
+      "latency_seconds": 3.36,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "search_products_catalog"
+      ],
+      "word_count": 123,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Boa tarde! Infelizmente, a Empório da Música não vende encordoamentos, palhetas ou amplificadores, pois trabalhamos exclusivamente com instrumentos musicais completos. Para esses acessórios, recomendo que você procure lojas parceiras especializadas.\n\nMas se você estiver interessado em violões, temos várias opções incríveis! Aqui estão alguns modelos disponíveis:\n\n1. **Tagima Memphis AC-39 Nylon Natural**\n   - Preço: R$ 429,90\n   - Descrição: Violão clássico com cordas de nylon, perfeito para iniciantes.\n\n2. **Rozini RC-104 Nylon Estudante**\n   - Preço: R$ 459,90\n   - Descrição: Violão clássico de estudo, feito com madeiras nacionais.\n\n3. **Yamaha C40 Nylon Natural**\n   - Preço: R$ 599,90\n   - Descrição: Violão clássico ideal para estudantes, com excelente projeção sonora.\n\nSe precisar de mais informações sobre algum desses modelos ou ajuda com outra coisa, é só avisar!"
+    },
+    {
+      "id": "CENARIO_08_PONTA_DE_ESTOQUE_IBANEZ_BASS",
+      "description": "Baixo Ibanez Bass 2X descontinuado com estoque vendido com transparência (D2)",
+      "passed": true,
+      "latency_seconds": 3.53,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "get_product_details_and_pricing"
+      ],
+      "word_count": 146,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Oi! Temos sim o **Ibanez Bass 2X Electric Bass** disponível. Ele é um contrabaixo Precision de 4 cordas, com corpo em Ash e braço em Maple, perfeito para gravações em estúdio. O preço é de **R$ 441,00**, e se você optar pelo pagamento via PIX, sai por **R$ 418,95** (com 5% de desconto).\n\nA boa notícia é que ainda temos 13 unidades em estoque, mas atenção: esse modelo foi descontinuado pelo fabricante, então não haverá reposição. Se você está interessado, é bom garantir logo!\n\nAqui estão as opções de pagamento:\n- **À vista no PIX**: R$ 418,95\n- **À vista no débito**: R$ 441,00\n- **À vista no boleto**: R$ 441,00\n- **Cartão de crédito**: até 5x sem juros.\n\nA entrega em Campo Grande tem uma taxa de R$ 35,00, totalizando R$ 476,00.\n\nSe precisar de mais alguma coisa ou tiver dúvidas, é só avisar! 🎸"
+    },
+    {
+      "id": "CENARIO_09_PEDIDO_MISTO_E_GUARDRAIL",
+      "description": "Pergunta mista recusando receita culinária e acessório, mas atendendo guitarra",
+      "passed": true,
+      "latency_seconds": 3.06,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "get_product_details_and_pricing"
+      ],
+      "word_count": 131,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Oi! Infelizmente, não posso te ajudar com a receita de bolo de milho, mas posso te passar as informações sobre a Fender Telecaster e as cordas de guitarra.\n\n### Fender Telecaster Player Series\n- **Preço:** R$ 5.400,00\n- **Desconto no PIX:** R$ 5.130,00 (5% de desconto à vista)\n- **Descrição:** Guitarra elétrica com 2 captadores Player Series Alnico 5, oferecendo o autêntico \"twang\" da Fender com tocabilidade moderna.\n- **Parcelamento:** Até 12x sem juros no cartão.\n\n**Importante:** A promoção de 15% que estava ativa (Queima de Estoque) já expirou.\n\n### Sobre as cordas de guitarra\nAqui na Empório da Música, não vendemos acessórios avulsos como cordas. Recomendo que você procure lojas parceiras especializadas para isso.\n\nSe precisar de mais alguma coisa ou tiver dúvidas sobre outros instrumentos, é só falar! 🎸"
+    },
+    {
+      "id": "CENARIO_10_ESCALONAMENTO_USADOS_GERENCIA",
+      "description": "Consulta sobre instrumento usado na base de troca encaminha à gerência (Seção 10)",
+      "passed": true,
+      "latency_seconds": 2.56,
+      "tool_calls_count": 1,
+      "tools_called": [
+        "consult_store_policies"
+      ],
+      "word_count": 75,
+      "tools_passed": true,
+      "required_passed": true,
+      "forbidden_passed": true,
+      "reply": "Oi! Infelizmente, a Empório da Música não aceita instrumentos usados como parte de pagamento na compra de novos. A loja se dedica exclusivamente à venda de instrumentos novos e não realiza trocas ou aluguel. \n\nSe você tiver uma proposta especial ou quiser discutir algo mais, posso encaminhar sua solicitação à gerência. Você pode também entrar em contato diretamente pelo telefone (67) 3341-4444 ou pelo e-mail contato@emporiodamusica.com.br.\n\nSe precisar de mais alguma coisa, é só avisar!"
+    }
+  ]
+}

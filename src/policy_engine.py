@@ -8,6 +8,7 @@ e detecção proativa de itens fora de escopo (acessórios não comercializados)
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+from pypdf import PdfReader
 
 from src.config import DATA_DIR, STORE_INFO
 from src.data_engine import normalize_text
@@ -22,8 +23,59 @@ class PolicyEngine:
         self.sections: Dict[str, Dict[str, Any]] = {}
         self._load_policy_sections()
 
+    def _normalize_pdf_text(self, raw_text: str) -> str:
+        """Normaliza espaços, remove paginações e corrige erros conhecidos do PDF."""
+        text = re.sub(r"\s+", " ", raw_text)
+        text = re.sub(r"Empório da Música Manual de Políticas e Procedimentos\s*", "", text)
+        text = re.sub(r"Página \d+\s*", "", text)
+        text = re.sub(r"Empório da Música — Sua música começa aqui\. Última atualização: Junho de 2025 — Versão 2\.1", "", text)
+        text = text.replace("contato@empóriodamusica.com.br", "contato@emporiodamusica.com.br")
+        text = text.replace("(67) 3341 - 4444", "(67) 3341-4444")
+        return text.strip()
+
+    def _extract_raw_pdf_sections(self) -> Dict[str, str]:
+        """Extrai o texto real das 10 seções a partir de data/políticas_da_loja.pdf."""
+        if not self.pdf_path.exists():
+            return {}
+
+        try:
+            reader = PdfReader(str(self.pdf_path))
+            raw_full = " ".join(page.extract_text() for page in reader.pages)
+            normalized_full = self._normalize_pdf_text(raw_full)
+
+            delimiters = [
+                ("institucional", "1. Sobre a Empório da Música"),
+                ("horarios", "2. Horário de Funcionamento"),
+                ("pagamento", "3. Formas de Pagamento"),
+                ("trocas_devolucoes", "4. Política de Trocas e Devoluções"),
+                ("frete_entregas", "5. Política de Frete e Entregas"),
+                ("promocoes", "6. Promoções e Descontos"),
+                ("atendimento_whatsapp", "7. Atendimento via WhatsApp"),
+                ("garantia", "8. Garantia"),
+                ("privacidade_lgpd", "9. Privacidade e Proteção de Dados"),
+                ("disposicoes_finais", "10. Disposições Finais"),
+            ]
+
+            positions = []
+            for key, heading in delimiters:
+                pos = normalized_full.find(heading)
+                if pos != -1:
+                    positions.append((key, heading, pos))
+
+            extracted: Dict[str, str] = {}
+            for i, (key, heading, pos) in enumerate(positions):
+                start = pos
+                end = positions[i + 1][2] if i + 1 < len(positions) else len(normalized_full)
+                section_text = normalized_full[start:end].strip()
+                extracted[key] = section_text
+
+            return extracted
+        except Exception:
+            return {}
+
     def _load_policy_sections(self) -> None:
-        """Estrutura as 10 seções do manual com metadados e palavras-chave de busca."""
+        """Estrutura as 10 seções do manual combinando extração real do PDF com regras de negócio."""
+        pdf_extracted = self._extract_raw_pdf_sections()
         self.sections = {
             "institucional": {
                 "title": "1. Sobre a Empório da Música & Escopo de Atuação",
@@ -100,7 +152,7 @@ class PolicyEngine:
                 "content": (
                     "5.1 Entregas na Região Metropolitana de Campo Grande/MS:\n"
                     "• Frete GRÁTIS para pedidos acima de R$ 500,00.\n"
-                    "• Taxa fixa de R$ 35,00 para pedidos abaixo de R$ 500,00.\n"
+                    "• Taxa fixa de R$ 35,00 para pedidos até R$ 500,00.\n"
                     "• Prazo: 1 a 3 dias úteis (entrega por motoboy próprio; cliente contactado por telefone antes da entrega).\n\n"
                     "5.2 Entregas para Outras Cidades e Estados (Interior de MS e Brasil):\n"
                     "• PAC (Correios): 5 a 12 dias úteis (rastreamento e seguro inclusos).\n"
@@ -183,6 +235,9 @@ class PolicyEngine:
                 )
             }
         }
+
+        for k in self.sections:
+            self.sections[k]["pdf_extracted_text"] = pdf_extracted.get(k, "")
 
     def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
         """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""

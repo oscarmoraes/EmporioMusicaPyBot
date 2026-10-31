@@ -222,7 +222,7 @@ class DataEngine:
         for n in range(1, 13):
             val = round(base_credit / n, 2)
             if n <= 3:
-                allowed = (val >= 50.0) or (n == 1)
+                allowed = (val >= 50.0)
                 min_req = 50.0
             elif 4 <= n <= 6:
                 allowed = (val >= 80.0)
@@ -239,9 +239,9 @@ class DataEngine:
                     "interest_free": True
                 })
 
-        max_allowed_installments = max([i["installments"] for i in installments]) if installments else 1
+        max_allowed_installments = max([i["installments"] for i in installments]) if installments else 0
         combined_allowed = effective_price > 2000.0
-        cg_free_shipping = effective_price >= 500.0
+        cg_free_shipping = effective_price > 500.0
         cg_shipping_cost = 0.0 if cg_free_shipping else 35.0
 
         return {
@@ -282,7 +282,7 @@ class DataEngine:
                 "note": (
                     "Frete GRÁTIS para Campo Grande (pedido acima de R$ 500,00 — entrega por motoboy em 1 a 3 dias úteis)."
                     if cg_free_shipping else
-                    f"Taxa fixa de R$ 35,00 para Campo Grande (pedido abaixo de R$ 500,00 — total com frete: {format_brl(effective_price + cg_shipping_cost)}, entrega por motoboy em 1 a 3 dias úteis)."
+                    f"Taxa fixa de R$ 35,00 para Campo Grande (pedido até R$ 500,00 — total com frete: {format_brl(effective_price + cg_shipping_cost)}, entrega por motoboy em 1 a 3 dias úteis)."
                 )
             }
         }
@@ -490,6 +490,11 @@ class DataEngine:
                 "short_description": p_desc
             }
 
+            if not is_purchasable:
+                item_data.pop("pix_price", None)
+                item_data.pop("pix_5_percent_discount_applied", None)
+                item_data.pop("max_installments_without_interest", None)
+
             # Classificação de status
             if status == "active" and stock > 0:
                 available_items.append(item_data)
@@ -644,7 +649,9 @@ class DataEngine:
                     "product_id": sim["product_id"],
                     "name": sim["name"],
                     "price": sim_price,
+                    "pix_price": sim_pix,
                     "pix_price_5_percent_off": sim_pix,
+                    "has_active_promotion": bool(sim_active_promo),
                     "stock_quantity": sim["stock_quantity"]
                 }))
 
@@ -653,13 +660,7 @@ class DataEngine:
 
         is_purchasable_now = (stock > 0 and status in ("active", "discontinued"))
         if not is_purchasable_now:
-            payment_plans = {
-                "available_for_immediate_purchase": False,
-                "note": (
-                    "Produto sem estoque para pronta entrega hoje. "
-                    "Apresente os preços e o desconto de 5% no PIX apenas para os modelos similares disponíveis em similar_available_alternatives."
-                )
-            }
+            payment_plans = None
 
         # Montagem do status comercial e diretrizes da Seção 7.3
         status_guidance = ""
@@ -733,62 +734,41 @@ class DataEngine:
 
     def lookup_orders(
         self,
-        order_id: Optional[int] = None,
-        tracking_code: Optional[str] = None,
-        customer_query: Optional[str] = None
+        order_id: Optional[int] = None
     ) -> Dict[str, Any]:
-        """Localiza pedidos e analisa elegibilidade de devolução por arrependimento e garantia CDC."""
-        cur = self.conn.cursor()
+        """Localiza pedido exclusivamente por order_id (Decisão D3) e analisa elegibilidade CDC."""
+        if order_id is None:
+            return {
+                "found": False,
+                "error": "order_id_required",
+                "message": "Informe o número do pedido (order_id)."
+            }
+        try:
+            order_id = int(order_id)
+            if order_id <= 0:
+                raise ValueError()
+        except (ValueError, TypeError):
+            return {
+                "found": False,
+                "error": "order_id_required",
+                "message": "Informe um número de pedido (order_id) válido."
+            }
 
-        sql = """
-            SELECT o.*, c.name as customer_name, c.phone as customer_phone,
-                   c.email as customer_email, c.city as customer_city
+        cur = self.conn.cursor()
+        cur.execute("""
+            SELECT o.order_id, o.customer_id, o.order_date, o.status, o.total_brl,
+                   o.payment_method, o.tracking_code, o.estimated_delivery, o.notes,
+                   c.name as customer_name
             FROM orders o
             JOIN customers c ON o.customer_id = c.customer_id
-            WHERE 1=1
-        """
-        params = []
-        if order_id and customer_query:
-            term = f"%{customer_query.strip()}%"
-            sql += " AND (o.order_id = ? OR c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)"
-            params.extend([order_id, term, term, term])
-        elif order_id:
-            sql += " AND o.order_id = ?"
-            params.append(order_id)
-        elif tracking_code:
-            sql += " AND UPPER(o.tracking_code) = UPPER(?)"
-            params.append(tracking_code.strip())
-        elif customer_query:
-            term = f"%{customer_query.strip()}%"
-            sql += " AND (c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)"
-            params.extend([term, term, term])
-
-        cur.execute(sql, params)
+            WHERE o.order_id = ?
+        """, (order_id,))
         orders_rows = cur.fetchall()
-
-        # Fallback por tokens normalizados para nomes compostos / homônimos (ex: 'Bruno Martins' -> 'Bruno Carvalho Martins')
-        if not orders_rows and customer_query:
-            q_tokens = [t for t in re.findall(r"\w+", normalize_text(customer_query)) if len(t) >= 2]
-            if q_tokens:
-                cur.execute("""
-                    SELECT o.*, c.name as customer_name, c.phone as customer_phone,
-                           c.email as customer_email, c.city as customer_city
-                    FROM orders o
-                    JOIN customers c ON o.customer_id = c.customer_id
-                """)
-                all_orders = cur.fetchall()
-                orders_rows = [
-                    r for r in all_orders
-                    if all(
-                        tok in normalize_text(f"{r['customer_name']} {r['customer_email']} {r['customer_phone']}")
-                        for tok in q_tokens
-                    )
-                ]
 
         if not orders_rows:
             return {
                 "found": False,
-                "message": f"Nenhum pedido encontrado com os critérios fornecidos (ID: {order_id}, Rastreio: {tracking_code}, Cliente: {customer_query})."
+                "message": f"Nenhum pedido encontrado com o número #{order_id}."
             }
 
         orders_result = []
@@ -888,26 +868,11 @@ class DataEngine:
             elif status == "cancelled":
                 return_eligibility["regret_status"] = f"Pedido já cancelado. Motivo registrado: {o['notes'] or 'Não informado'}."
 
-            cust_city = o["customer_city"]
-            if normalize_text(cust_city) == "campo grande":
-                shipping_rule_note = (
-                    "Cliente em Campo Grande/MS (Seção 5.1): Frete GRÁTIS para pedidos acima de R$ 500,00 (motoboy em 1 a 3 dias úteis); "
-                    "taxa fixa de R$ 35,00 abaixo de R$ 500,00."
-                )
-            else:
-                shipping_rule_note = (
-                    f"ATENÇÃO — CLIENTE DO INTERIOR ({cust_city}/MS — Seção 5.1 e 5.2): O frete grátis acima de R$ 500,00 é EXCLUSIVO para Campo Grande! "
-                    f"Para {cust_city}, NÃO há frete grátis por valor; o envio é cobrado à parte e realizado via Correios (PAC: 5 a 12 dias úteis / SEDEX: 2 a 5 dias úteis) ou Jadlog (3 a 8 dias úteis)."
-                )
-
             orders_result.append({
                 "order_id": oid,
                 "customer": {
                     "customer_id": o["customer_id"],
-                    "name": o["customer_name"],
-                    "phone": o["customer_phone"],
-                    "email": o["customer_email"],
-                    "city": cust_city
+                    "name": o["customer_name"]
                 },
                 "order_date": order_date_str,
                 "status": status,
@@ -915,7 +880,6 @@ class DataEngine:
                 "payment_method": o["payment_method"],
                 "tracking_code": o["tracking_code"] or "Ainda não gerado (aguardando despacho / mudança para status 'shipped')",
                 "estimated_delivery": estimated_del_str or "Em definição",
-                "shipping_policy_for_customer_city": shipping_rule_note,
                 "notes": o["notes"],
                 "items": items,
                 "return_and_warranty_analysis": return_eligibility

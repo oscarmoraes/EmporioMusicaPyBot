@@ -28,11 +28,11 @@ scenarios = [
     },
     {
         "filename": "03_pedido_e_devolucao_arrependimento.md",
-        "title": "Cenário 3: Situação Não-Trivial — Rastreio de Pedidos em Tempo Real e Aplicação do CDC (Direito de Arrependimento)",
-        "description": "Demonstra o agente localizando múltiplos pedidos do cliente Pedro Henrique Oliveira, analisando em tempo real o prazo de 7 dias do Direito de Arrependimento (Art. 49 CDC) com base na data de entrega e esclarecendo o motivo de cancelamento com notas do sistema.",
+        "title": "Cenário 3: Situação Não-Trivial — Rastreio de Pedidos em Tempo Real, Privacidade (D3) e Aplicação do CDC",
+        "description": "Demonstra o agente aplicando a Decisão D3 (solicitando o número do pedido quando o cliente informa apenas o nome, protegendo a privacidade), analisando em tempo real o prazo de 7 dias do Direito de Arrependimento (Art. 49 CDC) no pedido #1 e esclarecendo o motivo de cancelamento do pedido #19 com notas do sistema.",
         "turns": [
             "Olá, sou o Pedro Henrique Oliveira. Poderia verificar como estão meus pedidos na loja?",
-            "Sobre o pedido #1 com o violão Martin D-28: me arrependi da minha compra, posso devolver meu pedido e receber o dinheiro de volta?",
+            "Claro! Os números são o pedido #1 (violão Martin D-28) e o pedido #19. Sobre o pedido #1: me arrependi da minha compra, posso devolver meu pedido e receber o dinheiro de volta?",
             "Entendi a questão dos 7 dias corridos. E sobre o meu outro pedido (#19) que aparece como cancelado, por qual motivo ele foi cancelado?"
         ]
     },

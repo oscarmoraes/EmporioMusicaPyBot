@@ -80,27 +80,18 @@ AGENT_TOOLS = [
         "function": {
             "name": "lookup_customer_orders",
             "description": (
-                "Consulta o status de pedidos de clientes, código de rastreamento, itens adquiridos "
-                "e avalia automaticamente a elegibilidade para devolução por arrependimento (7 dias corridos do CDC) "
-                "ou troca por defeito (30 dias na loja / 90 dias de garantia legal). Permite buscar por número do pedido, "
-                "código de rastreio ou dados do cliente (nome, telefone ou email)."
+                "Consulta status, itens, datas, rastreio e prazos de garantia ou arrependimento de um pedido "
+                "pelo número obrigatório (order_id). Não permite busca por nome, e-mail ou telefone (Decisão D3 / LGPD)."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "order_id": {
                         "type": "integer",
-                        "description": "Número de identificação do pedido no sistema"
-                    },
-                    "tracking_code": {
-                        "type": "string",
-                        "description": "Código de rastreamento alfanumérico no formato BRXXXXXXXXXBR"
-                    },
-                    "customer_query": {
-                        "type": "string",
-                        "description": "Nome do cliente, telefone com DDD ou endereço de email"
+                        "description": "Número de identificação do pedido no sistema (obrigatório)"
                     }
-                }
+                },
+                "required": ["order_id"]
             }
         }
     },
@@ -162,9 +153,7 @@ def execute_tool(
 
     elif tool_name == "lookup_customer_orders":
         return data_engine.lookup_orders(
-            order_id=arguments.get("order_id"),
-            tracking_code=arguments.get("tracking_code"),
-            customer_query=arguments.get("customer_query")
+            order_id=arguments.get("order_id")
         )
 
     elif tool_name == "consult_store_policies":
