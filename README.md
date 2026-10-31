@@ -1,0 +1,251 @@
+# 🎸 Empório da Música — Agente Autônomo de Atendimento Inteligente
+> **Desafio Técnico — AI Engineer | Artefact Brasil**  
+> **Candidato:** Oscar Lima  
+> **Linguagem Principal:** Python 3.12 / 3.13  
+> **Arquitetura:** Agente ReAct Híbrido com Function Calling Determinado + Ingestão Relacional SQLite + Retrieval Normativo Estruturado
+
+---
+
+## 📌 Sumário
+1. [Visão Geral & Cenário de Negócio](#1-visão-geral--cenário-de-negócio)
+2. [Arquitetura da Solução](#2-arquitetura-da-solução)
+3. [Mapeamento de Edge Cases e Armadilhas dos Dados](#3-mapeamento-de-edge-cases-e-armadilhas-dos-dados)
+4. [Justificativa das Decisões Técnicas](#4-justificativa-das-decisões-técnicas)
+5. [Como Executar o Projeto](#5-como-executar-o-projeto)
+6. [Exemplos de Interações Reais](#6-exemplos-de-interações-reais)
+7. [Testes Automatizados](#7-testes-automatizados)
+8. [Limitações Conhecidas & Próximos Passos](#8-limitações-conhecidas--próximos-passos)
+9. [Uso de Assistentes de Código (Workflow com IA)](#9-uso-de-assistentes-de-código-workflow-com-ia)
+
+---
+
+## 1. Visão Geral & Cenário de Negócio
+
+A **Empório da Música** é uma loja tradicional de instrumentos musicais fundada em 2008 em Campo Grande/MS. A equipe de atendimento recebia um alto volume de dúvidas recorrentes pelo canal do WhatsApp (67) 3321-4500, gerando sobrecarga operacional e demora no tempo de resposta ao cliente.
+
+O objetivo deste projeto foi prototipar e implementar um **Agente de Atendimento em Python** que atue como o consultor musical virtual **Tom**, sendo capaz de:
+- Assumir a persona acolhedora, especializada e amigável da marca;
+- Roteador dinâmico: saber quando consultar dados operacionais (catálogo, estoque em tempo real, pedidos, promoções ativas) e quando consultar o manual de políticas (CDC, arrependimento de 7 dias, frete, horários);
+- Respeitar estritamente o escopo exclusivo da loja (venda exclusiva de instrumentos musicais, recusando cordas, palhetas, amplificadores e outros acessórios avulsos);
+- Garantir **zero alucinação** em preços, regras de parcelamento e disponibilidade de estoque.
+
+---
+
+## 2. Arquitetura da Solução
+
+Para evitar os riscos de alucinação de SQL livre (*Text-to-SQL*) e a perda de contexto por chunking cego em bancos vetoriais pesados, adotamos uma **Arquitetura Híbrida ReAct com Roteamento por Ferramentas Especializadas (Function Calling)**:
+
+```
+                            ┌────────────────────────────────┐
+                            │       Cliente / Usuário        │
+                            │   (CLI Rich / Web Streamlit)   │
+                            └───────────────┬────────────────┘
+                                            │ Mensagem
+                                            ▼
+                            ┌────────────────────────────────┐
+                            │    Agente Orquestrador Tom     │
+                            │ (ReAct Multi-Step + Memória)   │
+                            └───────────────┬────────────────┘
+                                            │ Function Calling
+               ┌────────────────────────────┼────────────────────────────┐
+               ▼                            ▼                            ▼
+     ┌──────────────────┐         ┌──────────────────┐         ┌──────────────────┐
+     │ search_products_ │         │   lookup_order   │         │  consult_store_  │
+     │     catalog      │         │     details      │         │     policies     │
+     │ get_product_info │         │                  │         │                  │
+     └─────────┬────────┘         └────────┬─────────┘         └────────┬─────────┘
+               │                           │                            │
+               ▼                           ▼                            ▼
+  ┌─────────────────────────┐ ┌─────────────────────────┐ ┌─────────────────────────┐
+  │   SQLite em Memória     │ │   Motor de Prazos CDC   │ │  Section-Based Engine   │
+  │ • Products + JSON Specs │ │ • Cruzamento de Pedidos │ │ • 10 Seções Normativas  │
+  │ • Active/Expired Promos │ │ • Cálculo de 7d/30d/90d │ │ • Detector de Acessório │
+  │ • Ponta de Estoque      │ │ • Status e Rastreio     │ │ • Regras de Frete e CDC │
+  └─────────────────────────┘ └─────────────────────────┘ └─────────────────────────┘
+```
+
+### Componentes Chave:
+- **`src/data_engine.py`**: Carrega os 6 arquivos CSV em tabelas relacionais indexadas no SQLite em memória. Deserializa o JSON da coluna `specs` dos produtos, calcula o `effective_price` via cruzamento com promoções ativas (`is_active = 1`), preserva o histórico de promoções expiradas e implementa a máquina de cálculo financeiro (desconto PIX e parcelamento no cartão).
+- **`src/policy_engine.py`**: Extrai e indexa estruturadamente as 10 seções do manual `data/políticas_da_loja.pdf`. Mantém as tabelas e regras de exceção juntas (evitando segmentações que prejudiquem a coerência das regras) e implementa detecção léxica/semântica de itens fora de escopo (acessórios não vendidos).
+- **`src/tools.py`**: Define os schemas JSON tipados das ferramentas para o modelo (`search_products_catalog`, `get_product_details_and_pricing`, `lookup_customer_orders`, `consult_store_policies`) e despacha as chamadas.
+- **`src/agent.py`**: Loop ReAct multi-step do agente com tratamento de múltiplas chamadas consecutivas de ferramentas, formatação do System Prompt e injeção da persona musical.
+- **`src/memory.py`**: Gerenciador de histórico de mensagens por sessão com rastreamento completo de telemetria das ferramentas executadas (*tool trace*).
+- **`main.py` e `app.py`**: Interfaces interativas via terminal estilizado (Rich) e navegador web (Streamlit com layout estilo WhatsApp).
+
+---
+
+## 3. Mapeamento de Edge Cases e Armadilhas dos Dados
+
+A exploração detalhada dos dados fornecidos no teste técnico revelou desafios específicos e sutilezas operacionais que o agente foi especialmente desenhado para tratar:
+
+| # | Situação Especial Encontrada | Evidência no Dataset (`data/*`) | Tratamento Implementado no Agente |
+| :- | :--- | :--- | :--- |
+| **1** | **Produto Ativo sem Estoque** | `ID=96` (*Giannini GF-3D*, R$ 799,90) tem `status='active'`, mas `stock_quantity=0`. | A ferramenta separa o produto dos disponíveis regulares. O agente cumpre a **Seção 7.3 do Manual**: informa com empatia a indisponibilidade temporária e sugere automaticamente similares disponíveis (*Tagima Dallas* ou *Shelby SGD-195E*). |
+| **2** | **Descontinuado COM Estoque (Ponta de Estoque)** | `ID=136` (*Ibanez Bass 2X*, R$ 441,00) tem `status='discontinued'`, mas **13 unidades em estoque**. | Em vez de bloquear a venda ou ocultar o produto, o agente trata o caso como **Oportunidade Comercial de Ponta de Estoque (Últimas Unidades)**: avisa com transparência que o modelo saiu de linha pelo fabricante (sem reposição futura), aplica gatilho de oportunidade pelo preço excelente e lista também modelos da linha atual para comparação. |
+| **3** | **Descontinuado SEM Estoque** | `ID=113` (*Shelby SN-7C 7 Cordas*) tem `status='discontinued'` e `stock_quantity=0`. | O agente informa que o modelo não faz mais parte do catálogo regular e sugere modelos sucessores ativos (*Tagima TW-7 7 Cordas* ou *Rozini RV-174*). |
+| **4** | **Promoção Ativa & Filtros de Preço** | `ID=90` (*Crafter HT-100*) tem preço de tabela R$ 2.399,00, mas promoção ativa de 18% (`is_active=1`), caindo para **R$ 1.967,18**. | A busca de catálogo filtra sobre o `effective_price`. Se o cliente busca "violões até R$ 2.000", o Crafter é corretamente incluído. O retorno exibe preço de tabela, desconto e valor final. |
+| **5** | **Veto a Desconto Cumulativo no PIX** | Seção 6.2 do Manual: *"O desconto de PIX (5%) não se aplica sobre preços já promocionais."* | O calculador financeiro verifica `has_active_promo`. Para o *Crafter HT-100*, o PIX permanece R$ 1.967,18 (bloqueia acúmulo). Para produtos sem promoção (ex: *Takamine GD20* de R$ 2.199,00), o PIX aplica os 5% caindo para R$ 2.089,05. |
+| **6** | **21 Promoções Expiradas no Histórico** | Promoções de Black Friday, Páscoa e Semana do Músico com `is_active=0` no CSV. | Caso o cliente pergunte sobre um desconto antigo, o agente consulta o histórico expirado e cumpre a Seção 7.3: esclarece com transparência que a campanha venceu e apresenta o valor regular. |
+| **7** | **Categorias Sem Itens Cadastrados** | Categorias 6 (Sopro Madeiras), 7 (Sopro Metais) e 8 (Cordas Orquestrais) constam em `categories.csv`, mas possuem 0 produtos em `products.csv`. | Se o cliente buscar saxofone ou violino, o agente esclarece que a categoria pertence à loja, porém está temporariamente sem modelos cadastrados no estoque físico atual (diferenciando de acessórios, que a loja não vende). |
+| **8** | **Itens Fora de Escopo (Acessórios)** | Clientes pedindo cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. | O `PolicyEngine` detecta os termos e instrui o agente a recusar educadamente, explicando o foco exclusivo em instrumentos e sugerindo lojas parceiras (Seções 1 e 7.1). |
+| **9** | **Contradição de Parcelamento no Manual** | A Tabela da Seção 3 diz parcela mínima de R$ 100, mas a Seção 3.1 detalha: até 3x (mín. R$ 50), 4x a 6x (mín. R$ 80) e 7x a 12x (mín. R$ 100). | O motor aplica a regra detalhada da Seção 3.1 (escada progressiva de parcelas mínimas) e disponibiliza as parcelas matematicamente válidas. |
+| **10** | **Análise de Prazos CDC para Devoluções** | Pedidos no histórico variam de out/2025 a mar/2026. | Fixamos a data de referência `REFERENCE_DATE = 2026-03-25` (logo após o último pedido). Ao consultar um pedido entregue (ex.: Pedido #1 de Pedro Henrique), o sistema calcula os dias decorridos (151 dias) e embasa juridicamente que o prazo de 7 dias de arrependimento (Art. 49 CDC) expirou. |
+
+---
+
+## 4. Justificativa das Decisões Técnicas
+
+1. **Framework e Arquitetura do Agente:**
+   - *Decisão:* Adotamos o padrão **ReAct nativo via Function Calling da API OpenAI** em vez de frameworks monolíticos (como LangChain ou CrewAI).
+   - *Por quê:* Frameworks externos adicionam dezenas de dependências transitivas, dificultam o controle fino sobre o formato das mensagens e podem quebrar entre versões. A implementação nativa com Pydantic e chamadas tipadas é leve, determinística, auditável e compatível com múltiplos provedores (`OpenAI`, `Groq`, `Gemini via endpoint compatível`).
+
+2. **Ingestão dos CSVs via SQLite Relacional em Memória:**
+   - *Decisão:* Carregar os CSVs em tabelas relacionais SQLite com índices e views de preço promocional.
+   - *Por quê:* Permitir que a LLM gere código SQL livre (*Text-to-SQL*) é perigoso em produção: há risco de injeção, sintaxes incorretas e falhas ao tentar interpretar campos semi-estruturados como a coluna `specs` (JSON). O `DataEngine` encapsula queries parametrizadas de alta performance, garantindo integridade dos dados e respostas em menos de 10 milissegundos.
+
+3. **Retrieval Normativo por Seções Estruturadas (vs. VectorDB Pesado):**
+   - *Decisão:* Indexação estruturada das 10 seções do manual PDF com busca léxica/semântica ponderada em vez de ChromaDB/FAISS com embeddings neurais pesados.
+   - *Por quê:* O manual `políticas_da_loja.pdf` possui 8 páginas (~1.200 palavras). O chunking tradicional baseado em tamanho fixo fragmenta regras jurídicas dependentes (por exemplo, separa a tabela de frete das notas de cotação de baterias/pianos). Além disso, instalar bibliotecas como `torch` ou `sentence-transformers` exigiria downloads de mais de 1,5 GB no ambiente do avaliador. Nossa abordagem estruturada garante integridade de 100% do contexto por tópico sem sobrecarga.
+
+4. **Cálculo Financeiro e Prazos CDC no Código (Não na LLM):**
+   - *Decisão:* Descontos percentuais, escalonamento de parcelas sem juros e cálculo de dias corridos desde a entrega são executados em código determinístico Python e entregues prontos no retorno da ferramenta.
+   - *Por quê:* Modelos de linguagem podem cometer erros de arredondamento em contas matemáticas complexas. Garantir que o valor das parcelas e os dias de elegibilidade sejam processados em Python assegura conformidade financeira e legal inegociável.
+
+---
+
+## 5. Como Executar o Projeto
+
+### Pré-requisitos
+- **Python 3.12 ou 3.13** instalado na máquina.
+- Git instalado.
+
+### Passo 1: Clonar e Acessar o Repositório
+```bash
+git clone <URL_DO_REPOSITORIO>
+cd "Desafio Técnico AI Engineer 2026"
+```
+
+### Passo 2: Criar e Ativar o Ambiente Virtual
+No Windows (PowerShell):
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+No Linux / macOS:
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### Passo 3: Instalar as Dependências
+```bash
+pip install -r requirements.txt
+```
+
+### Passo 4: Configurar as Chaves de API
+Copie o arquivo de exemplo `.env.example` para `.env`:
+```bash
+cp .env.example .env
+```
+Abra o arquivo `.env` e insira sua chave da OpenAI:
+```env
+OPENAI_API_KEY=sua_chave_aqui
+OPENAI_MODEL=gpt-4o-mini
+AGENT_TEMPERATURE=0.2
+REFERENCE_DATE=2026-03-25
+```
+*(Opcionalmente, o sistema também suporta `GROQ_API_KEY` com o modelo `llama-3.3-70b-versatile`)*.
+
+---
+
+### Passo 5: Executar as Interfaces
+
+#### Opção A: Interface de Linha de Comando (CLI com Rich)
+Ideal para testes rápidos no terminal com formatação elegante:
+```bash
+python main.py
+```
+*Comandos disponíveis durante o chat:*
+- `/tools`: exibe as ferramentas acionadas e parâmetros da última resposta;
+- `/reset`: reinicia a conversa e limpa a memória de contexto;
+- `/salvar`: exporta a transcrição da sessão atual para um arquivo Markdown;
+- `/ajuda`: exibe sugestões de perguntas baseadas no desafio;
+- `/sair`: encerra a CLI.
+
+#### Opção B: Interface Web Interativa (Streamlit)
+Interface moderna simulando a experiência do WhatsApp com visualização em tempo real das chamadas de ferramentas:
+```bash
+streamlit run app.py
+```
+*Destaques da Web UI:*
+- Botões de **1 clique** na barra lateral para carregar e testar os cenários obrigatórios do desafio;
+- Painel expansível `"🛠️ Bastidores: Ferramentas Acionadas pelo Agente"` em cada mensagem para auditar o raciocínio e o JSON retornado pelo sistema;
+- Botão para exportar a conversa inteira para `.md`.
+
+---
+
+## 6. Exemplos de Interações Reais
+
+O edital exige entre 3 e 5 conversas documentadas no repositório cobrindo cenários variados. Todas as conversas foram executadas diretamente pelo agente com o modelo `gpt-4o-mini` e salvas na pasta [`examples/`](./examples):
+
+1. **[`examples/01_catalogo_violoes_ate_1000.md`](./examples/01_catalogo_violoes_ate_1000.md)**:  
+   *Cenário:* Consulta de violões até R$ 1.000. Demonstra a listagem ordenada por preço efetivo, isolando o *Giannini GF-3D* (ativo sem estoque) e o *Shelby SN-7C* (descontinuado), seguida de consultoria musical especializada explicando as diferenças entre cordas de nylon e aço para iniciantes.
+2. **[`examples/02_preco_promo_e_pagamento.md`](./examples/02_preco_promo_e_pagamento.md)**:  
+   *Cenário:* Consulta de preço do *Takamine GD20* (R$ 2.199,00 com 5% de desconto no PIX e parcelamento em 12x) comparado ao *Crafter HT-100* (em promoção de 18% a R$ 1.967,18, aplicando a regra de **não cumulatividade do PIX** da Seção 6.2).
+3. **[`examples/03_pedido_e_devolucao_arrependimento.md`](./examples/03_pedido_e_devolucao_arrependimento.md)**:  
+   *Cenário Não-Trivial:* O cliente Pedro Henrique Oliveira consulta o status de seus pedidos. O agente localiza o Pedido #1 (entregue) e calcula em tempo real que o prazo de 7 dias do Direito de Arrependimento (Art. 49 CDC) expirou (151 dias decorridos). Em seguida, explica com base nos dados do sistema por que o Pedido #19 foi cancelado (falta de pagamento do boleto).
+4. **[`examples/04_informacoes_gerais_e_frete.md`](./examples/04_informacoes_gerais_e_frete.md)**:  
+   *Cenário:* Informações de endereço físico, horário de funcionamento e detalhamento de frete para Campo Grande (motoboy grátis acima de R$ 500) vs interior/outras cidades (Correios/Jadlog e necessidade de cotação individual para instrumentos de grande porte como baterias e pianos).
+5. **[`examples/05_fora_de_escopo_e_ponta_de_estoque.md`](./examples/05_fora_de_escopo_e_ponta_de_estoque.md)**:  
+   *Cenário:* Teste dos guardrails de escopo (recusa educada de cordas, palhetas e amplificador), tratamento de categorias com 0 itens no catálogo (saxofone e violino) e oportunidade comercial de **Ponta de Estoque / Últimas Unidades** para o contrabaixo *Ibanez Bass 2X* (descontinuado pelo fabricante com 13 unidades remanescentes a R$ 441,00).
+
+---
+
+## 7. Testes Automatizados
+
+O projeto inclui uma suite completa de testes automatizados com `pytest` para assegurar o funcionamento das ferramentas e a cobertura de edge cases:
+
+```bash
+pytest -v tests/test_engine.py
+```
+
+### Casos de Teste Cobertos:
+- `test_normalize_text`: normalização de strings, remoção de diacríticos e acentuações;
+- `test_catalog_search_violões_under_1000`: filtros por teto de preço, status de estoque e separação de indisponíveis;
+- `test_active_promotion_and_pix_rule`: cálculo correto do preço promocional do *Crafter HT-100* e veto a 5% extra no PIX (Seção 6.2);
+- `test_regular_product_pix_discount`: aplicação dos 5% de desconto no PIX para produtos sem promoção ativa (*Takamine GD20*);
+- `test_clearance_opportunity_ibanez_bass`: ativação do sinalizador de Ponta de Estoque para produto descontinuado com estoque positivo;
+- `test_installment_ladder_rules`: validação matemática das parcelas mínimas de R$ 50 (até 3x), R$ 80 (4x a 6x) e R$ 100 (7x a 12x);
+- `test_customer_order_lookup_and_cdc_returns`: busca unificada de pedidos por cliente e contagem de prazo para devolução por arrependimento;
+- `test_empty_catalog_categories`: detecção de categorias válidas da loja temporariamente sem produtos cadastrados (Sopro e Cordas Orquestrais);
+- `test_policy_engine_retrieval`: recuperação semântica precisa de seções do manual normativo;
+- `test_out_of_scope_detection`: detecção proativa de termos de acessórios não comercializados.
+
+---
+
+## 8. Limitações Conhecidas & Próximos Passos
+
+Se tivéssemos mais tempo para expandir o projeto além do escopo do desafio, as seguintes melhorias seriam priorizadas:
+
+1. **Conector Oficial de WhatsApp (Meta Cloud API / Twilio):**
+   - Substituir a interface de chat simulada por uma integração oficial com a API do WhatsApp Business via webhooks assíncronos (FastAPI + Celery/Redis), suportando mensagens de áudio com transcrição via Whisper.
+2. **Checkout Assistido e Geração Dinâmica de PIX:**
+   - Implementar uma ferramenta `create_order_and_generate_pix` integrada à API do Banco Central para gerar o QR Code dinâmico do PIX (*Copia e Cola*) diretamente na conversa assim que o cliente confirmar a compra.
+3. **Autenticação Segura e LGPD:**
+   - Adicionar autenticação por código OTP enviado ao telefone cadastrado do cliente antes de exibir detalhes sensíveis de pedidos e endereços residenciais, reforçando a conformidade com a LGPD (Seção 9).
+4. **Observabilidade e Avaliação Contínua (LLM Ops):**
+   - Integrar tracing com **Langfuse** ou **OpenTelemetry** para monitorar custo de tokens, latência de chamadas e registrar avaliações automáticas de fidelidade ao catálogo e políticas (*faithfulness* e *hallucination detection*).
+
+---
+
+## 9. Uso de Assistentes de Código (Workflow com IA)
+
+Em consonância com as orientações do desafio (*"caso faça uso de algum recurso de IA, explique qual a escolhida e como utilizou"*), detalhamos nosso workflow de engenharia assistida por IA:
+
+- **Assistente Utilizado:** Antigravity (Google DeepMind) integrado ao ambiente local de desenvolvimento.
+- **Como a Ferramenta Foi Explorada:**
+  1. **Análise Exploratória do Dataset:** A IA foi utilizada para inspecionar os arquivos CSV e detectar as armadilhas propositais nos dados (tais como produtos com estoque 0 e status ativo, categorias com 0 itens no catálogo e conflitos entre a tabela de parcelamento e o texto descritivo do PDF).
+  2. **Refinamento Arquitetural:** Em vez de aceitar uma proposta genérica com bancos vetoriais pesados, realizamos uma sessão crítica aberta para substituir frameworks pesados por soluções enxutas, determinísticas e rápidas (SQLite em memória e Section-Based Retrieval).
+  3. **Aceleração do Scaffolding:** Geração dos schemas JSON para Function Calling e estruturação da suite de testes do `pytest`.
+  4. **Controle de Qualidade Humano:** Cada linha de lógica de negócio (cálculo de não cumulatividade do PIX, prazos de devolução do CDC e gatilho de ponta de estoque para descontinuados) foi validada, testada e ajustada manualmente para refletir com fidelidade as diretrizes da Empório da Música.
