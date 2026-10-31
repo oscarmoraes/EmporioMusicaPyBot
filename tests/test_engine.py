@@ -312,7 +312,7 @@ def test_case_14_itens_nao_elegiveis_para_troca_setup_boquilha(policy_engine):
     """Caso 14: Recuperação da Seção 4.4 sobre itens inelegíveis (setup sob encomenda, venda final, boquilhas)."""
     pol = policy_engine.retrieve_policies("posso trocar violão com regulagem especial ou boquilha de sopro?")
     contents = " ".join([s["content"] for s in pol["sections"]])
-    assert "4.4 Itens NÃO Elegíveis para Troca" in contents
+    assert "4.4 Itens ESTRITAMENTE NÃO Elegíveis para Troca" in contents
     assert "Boquilhas" in contents
 
 
@@ -328,7 +328,7 @@ def test_case_16_avaria_transporte_recusa_no_ato(policy_engine):
     """Caso 16: Orientação da Seção 5.2 para recusar entrega em caso de avaria aparente no transporte."""
     pol = policy_engine.retrieve_policies("caixa chegou amassada com avaria no frete da transportadora")
     contents = " ".join([s["content"] for s in pol["sections"]])
-    assert "recusar a entrega no ato" in contents
+    assert "RECUSAR O RECEBIMENTO NO ATO DA ENTREGA" in contents
 
 
 # --- BATERIA E: LGPD, Fora de Expediente e Guardrails Avançados ---
