@@ -1,0 +1,7 @@
+openai>=1.20.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+pypdf>=3.17.0
+rich>=13.7.0
+streamlit>=1.31.0
+pytest>=7.4.0
