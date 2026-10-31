@@ -38,8 +38,8 @@ Sua missão é atender os clientes no canal de WhatsApp com excelência, acolhim
    - Para dúvidas sobre **trocas, devoluções, garantia, luthier/mau uso, avaria no transporte, frete para o interior, horários de funcionamento, LGPD ou propostas atípicas (usados/aluguel/atacado)**: chame OBRIGATORIAMENTE `consult_store_policies` antes de responder.
 2. **ESCOPO EXCLUSIVO (NÃO VENDEMOS ACESSÓRIOS E PROIBIÇÃO ESTRITA DE CONTEÚDO FORA DO DOMÍNIO — Seções 1 e 7.1):**
    - A Empório da Música trabalha EXCLUSIVAMENTE com instrumentos musicais completos. NÃO comercializamos cordas avulsas/encordoamentos, palhetas, cabos (ex: P10), cases/capas, pedais/pedaleiras, afinadores avulsos ou amplificadores.
-   - **PROIBIÇÃO ABSOLUTA DE ASSUNTOS FORA DO DOMÍNIO:** Você é **estritamente proibido** de escrever receitas culinárias (ex: bolo de milho), listar ingredientes, dar previsão do tempo, dicas médicas ou responder sobre qualquer tema alheio a instrumentos musicais e à loja.
-   - **Em pedidos mistos** (ex: cliente pede assuntos aleatórios como clima/receita + acessórios + um instrumento): decline o assunto aleatório em **no máximo 1 frase curta e bem-humorada** (sem jamais fornecer a receita ou previsão), recuse cordialmente os acessórios sugerindo lojas parceiras especializadas e apresente os detalhes do instrumento solicitado.
+   - **PROIBIÇÃO ABSOLUTA DE ASSUNTOS FORA DO DOMÍNIO:** Você atua exclusivamente como consultor musical da loja e é **estritamente proibido** de gerar textos, tutoriais, instruções passo a passo ou listas sobre qualquer tema alheio a instrumentos musicais e às políticas da Empório da Música.
+   - **Em pedidos mistos** (quando o cliente combina perguntas fora do domínio + acessórios + um instrumento): decline o assunto alheio em **no máximo 1 frase curta e bem-humorada** (sem jamais atender ao pedido fora de escopo), recuse cordialmente os acessórios sugerindo lojas parceiras especializadas e apresente os detalhes do instrumento solicitado.
 3. **CATEGORIAS SEM ESTOQUE CADASTRADO (Sopro e Orquestrais):**
    - As categorias de Sopro (Madeiras e Metais) e Cordas Orquestrais fazem parte do portfólio da loja, mas atualmente estão sem unidades cadastradas no estoque. Explique que pertencem à loja, mas estão temporariamente esgotadas.
 4. **TRANSPARÊNCIA EM PROMOÇÕES ATIVAS E EXPIRADAS (Seções 6.2 e 7.3):**
@@ -112,28 +112,11 @@ class EmporioAgent:
         iteration = 0
         turn_tool_traces: List[Dict[str, Any]] = []
 
-        # Detecta gatilhos normativos especiais na mensagem do usuário para garantir 100% de aderência às Seções 7.1, 7.3 e 10
-        u_lower = user_text.lower()
+        # Verifica proativamente se há menção a acessórios fora do escopo da loja (Seção 1 e 7.1)
         policy_reminders = []
         acc_alert = self.policy_engine.check_out_of_scope_accessory(user_text)
         if acc_alert:
             policy_reminders.append(acc_alert["policy_instruction"])
-        if any(kw in u_lower for kw in ["anúncio antigo", "anuncio antigo", "black friday", "páscoa", "pascoa", "semana do músico", "liquidação de inverno"]):
-            policy_reminders.append(
-                "DIRETRIZ SEÇÃO 7.3 (Promoção Expirada): Confirme explicitamente na resposta que essa promoção passada (ex: Black Friday / Páscoa) existiu no histórico mas JÁ EXPIROU/ENCERROU, não sendo possível aplicar o desconto vencido. Em seguida, mostre o preço atual e os 5% de desconto no PIX."
-            )
-        if any(kw in u_lower for kw in ["usado", "base de troca", "parte do pagamento", "parte de pagamento", "aluguel", "alugar", "locação", "atacado", "cnpj", "escola"]):
-            policy_reminders.append(
-                "DIRETRIZ SEÇÃO 10 (Disposições Finais): Informe as regras oficiais do manual (ex: venda exclusiva de instrumentos novos, sem tabela de aluguel, usados na troca ou desconto extra de atacado além dos 5% no PIX). Se o cliente pedir múltiplas unidades, apresente o valor unitário e o VALOR TOTAL do lote (preço de tabela e com 5% no PIX), e mencione explicitamente que pode CONSULTAR OU ENCAMINHAR À GERÊNCIA ((67) 3341-4444 / contato@emporiodamusica.com.br) para avaliar propostas comerciais ou descontos especiais."
-            )
-        if any(kw in u_lower for kw in ["boquilha", "boquilhas", "palheta de sopro", "palhetas de sopro"]):
-            policy_reminders.append(
-                "DIRETRIZ SEÇÕES 4.4 E 8.3 (Instrumentos de Sopro): Informe expressamente que: (1) Boquilhas de instrumentos de sopro NÃO são elegíveis para troca ou devolução por questões de higiene sanitária (Seção 4.4); e (2) Palhetas de sopro (assim como cordas, trastes e feltros) são itens de desgaste natural e NÃO são cobertas pela garantia (Seção 8.3)."
-            )
-        if any(kw in u_lower for kw in ["três lagoas", "tres lagoas", "dourados", "corumbá", "corumba", "ponta porã", "ponta pora", "interior"]):
-            policy_reminders.append(
-                "DIRETRIZ SEÇÃO 5.1 E 5.2 (Frete Interior vs Capital): O frete grátis acima de R$ 500,00 é EXCLUSIVO para a Região Metropolitana de Campo Grande! Para cidades do interior (como Três Lagoas, Dourados, Corumbá, Ponta Porã), NÃO existe frete grátis por valor acima de R$ 500,00: o frete é cobrado à parte e enviado via Correios (PAC: 5 a 12 dias úteis / SEDEX: 2 a 5 dias úteis) ou Jadlog (3 a 8 dias úteis). Além disso, instrumentos de grande porte (como baterias acústicas, pianos digitais e contrabaixos acústicos) podem exigir frete especial com cotação individual (Seção 5.2)."
-            )
 
         while iteration < max_tool_iterations:
             iteration += 1
@@ -165,8 +148,13 @@ class EmporioAgent:
             # Se o modelo decidiu NÃO chamar nenhuma ferramenta, temos a resposta final
             if not tool_calls:
                 final_content = response_msg.content or ""
-                # Sanitização determinística de domínio oficial e escape de cifrão para Markdown/KaTeX
-                final_content = final_content.replace("emporiodamusima.com.br", "emporiodamusica.com.br")
+                # Sanitização determinística de domínio oficial (qualquer variação de typo no domínio da loja) e escape de cifrão para Markdown/KaTeX
+                final_content = re.sub(
+                    r"@emporioda[a-z]+\.com(\.br)?",
+                    "@emporiodamusica.com.br",
+                    final_content,
+                    flags=re.IGNORECASE,
+                )
                 final_content = re.sub(r"(?<!\\)\$", r"\$", final_content)
                 self.memory.add_assistant_message(final_content)
                 return final_content, turn_tool_traces

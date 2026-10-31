@@ -182,12 +182,15 @@ class PolicyEngine:
 
     def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
         """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""
-        # Remove menções legítimas a especificações de instrumentos, regulagem ou sobrenomes de clientes
-        cleaned = re.sub(r"\b\d+\s*cordas\b", "", text.lower())
+        # Ignora 'Correia' quando grafado como sobrenome próprio após prenome (ex: 'João Correia', 'Matheus Ramos Correia')
+        text_no_surnames = re.sub(r"\b[A-ZÀ-Ú][a-zà-ú]+\s+Correia\b", "", text)
+        cleaned = text_no_surnames.lower()
+
+        # Remove menções legítimas a especificações técnicas de instrumentos ou regulagem
+        cleaned = re.sub(r"\b\d+\s*cordas\b", "", cleaned)
         cleaned = re.sub(r"\bcordas\s+(orquestrais|de\s+nylon|de\s+aco|de\s+aço|nylon|aco|aço)\b", "", cleaned)
         cleaned = re.sub(r"\b(acao|ação|altura|ajuste)\s+das\s+cordas\b", "", cleaned)
         cleaned = re.sub(r"\bpalheta(s)?\s+(de\s+sopro|gasta|gastas)\b", "", cleaned)
-        cleaned = re.sub(r"\bramos\s+correia\b", "", cleaned)
 
         accessory_patterns = [
             r"\bcorda(s)?\b", r"\bencordoamento(s)?\b", r"\bpalheta(s)?\b",
@@ -210,7 +213,7 @@ class PolicyEngine:
                     "EXCLUSIVAMENTE com instrumentos musicais completos para garantir atendimento especializado, "
                     "não comercializando acessórios como cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. "
                     "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios. "
-                    "Se houver perguntas aleatórias fora do domínio (como clima ou receitas culinárias), recuse-as em no máximo 1 frase curta e NUNCA escreva receitas ou listas de ingredientes."
+                    "Caso a mensagem contenha perguntas sobre temas fora do domínio da loja, recuse-as em no máximo 1 frase curta sem desenvolver o conteúdo alheio."
                 )
             }
         return None
