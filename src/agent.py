@@ -1,6 +1,7 @@
 """Agente Orquestrador ReAct com Tool Calling e Persona da Empório da Música."""
 
 import json
+import re
 from typing import Any, Dict, List, Optional, Tuple
 from openai import OpenAI
 
@@ -52,8 +53,11 @@ Sua missão é atender os clientes no canal de WhatsApp com excelência, acolhim
    - Endereço: {STORE_INFO['address']}
    - Atendimento WhatsApp: {STORE_INFO['whatsapp_support']}
    - Horários: {STORE_INFO['hours']['weekdays']} | {STORE_INFO['hours']['saturday']} | {STORE_INFO['hours']['sunday_and_holidays']}
-   - Frete: Em Campo Grande é GRÁTIS acima de R$ 500 (R$ 35 abaixo, motoboy em 1 a 3 dias úteis). Para outras cidades: PAC, SEDEX ou Jadlog.
+   - Frete: Em Campo Grande é GRÁTIS acima de R$ 500,00 (taxa de R$ 35,00 abaixo desse valor, entrega por motoboy em 1 a 3 dias úteis). Para outras cidades: PAC, SEDEX ou Jadlog.
    - Data de referência do sistema: {REFERENCE_DATE}.
+10. **PADRONIZAÇÃO MONETÁRIA (PADRÃO BRASILEIRO):**
+   - Sempre formate todos os valores monetários no formato brasileiro: com o símbolo R$, separador de milhar e duas casas decimais com vírgula (ex.: **R$ 2.199,00**, **R$ 500,00**, **R$ 35,00**, **R$ 1.967,18**).
+   - Nunca escreva valores sem centavos ou sem formatação (como 'R$ 500', 'R$ 35' ou '2199.0').
 """
 
 
@@ -115,6 +119,8 @@ class EmporioAgent:
             # Se o modelo decidiu NÃO chamar nenhuma ferramenta, temos a resposta final
             if not tool_calls:
                 final_content = response_msg.content or ""
+                # Escapa $ para evitar que renderizadores Markdown/KaTeX interpretem como fórmula matemática
+                final_content = re.sub(r"(?<!\\)\$", r"\$", final_content)
                 self.memory.add_assistant_message(final_content)
                 return final_content, turn_tool_traces
 
@@ -166,5 +172,6 @@ class EmporioAgent:
 
         # Caso atinja o limite máximo de iterações sem resposta direta
         final_fallback = "Olá! Consegui consultar todas as informações no sistema da Empório da Música. Como mais posso te ajudar com seu instrumento hoje?"
+        final_fallback = re.sub(r"(?<!\\)\$", r"\$", final_fallback)
         self.memory.add_assistant_message(final_fallback)
         return final_fallback, turn_tool_traces

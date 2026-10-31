@@ -25,6 +25,12 @@ def normalize_text(text: str) -> str:
     return "".join([c for c in nfkd if not unicodedata.combining(c)]).strip()
 
 
+def format_brl(val: float) -> str:
+    """Formata valores numéricos para o padrão monetário brasileiro (ex: R$ 2.199,00)."""
+    return f"R$ {val:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+
 
 class DataEngine:
     """Gerencia as consultas relacionais aos dados operacionais da Empório da Música."""
@@ -199,11 +205,11 @@ class DataEngine:
         if has_active_promo:
             pix_price = round(effective_price, 2)
             pix_discount_applied = False
-            pix_note = "Preço promocional ativo: desconto de 5% do PIX não cumulativo (Seção 6.2)."
+            pix_note = f"Preço promocional ativo de {format_brl(effective_price)}: desconto de 5% do PIX não cumulativo (Seção 6.2)."
         else:
             pix_price = round(effective_price * 0.95, 2)
             pix_discount_applied = True
-            pix_note = f"À vista no PIX com 5% de desconto: R$ {pix_price:.2f} (economia de R$ {(effective_price - pix_price):.2f})."
+            pix_note = f"À vista no PIX com 5% de desconto: {format_brl(pix_price)} (economia de {format_brl(effective_price - pix_price)})."
 
         # Parcelamento no Cartão de Crédito sem juros (Seção 3.1):
         # • Até 3x: sem juros, parcela mínima R$ 50.

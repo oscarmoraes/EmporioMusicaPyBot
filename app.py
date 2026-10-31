@@ -5,9 +5,21 @@ de histórico na sessão, inspeção detalhada das ferramentas acionadas e
 botões de atalho para os principais cenários do desafio.
 """
 
+import re
 import streamlit as st
 from src.agent import EmporioAgent
 from src.config import STORE_INFO
+
+
+def sanitize_markdown(text: str) -> str:
+    """Escapa cifrões não-escapados ($ -> \\$) para impedir que o KaTeX do Streamlit
+
+    interprete valores monetários como fórmulas matemáticas (o que causava texto verde/itálico).
+    """
+    if not text:
+        return ""
+    return re.sub(r"(?<!\\)\$", r"\$", text)
+
 
 # Configuração da página
 st.set_page_config(
@@ -130,7 +142,7 @@ st.markdown('<div class="sub-header">Atendimento Inteligente com Tool Calling & 
 # Renderização das mensagens existentes
 for msg in st.session_state.chat_history:
     with st.chat_message(msg["role"], avatar="🎸" if msg["role"] == "assistant" else "👤"):
-        st.markdown(msg["content"])
+        st.markdown(sanitize_markdown(msg["content"]))
         if msg.get("traces"):
             with st.expander("🛠️ Bastidores: Ferramentas Acionadas pelo Agente", expanded=False):
                 for idx, t in enumerate(msg["traces"], 1):
@@ -148,14 +160,14 @@ if user_message:
     # 1. Exibe a mensagem do usuário
     st.session_state.chat_history.append({"role": "user", "content": user_message})
     with st.chat_message("user", avatar="👤"):
-        st.markdown(user_message)
+        st.markdown(sanitize_markdown(user_message))
 
     # 2. Executa o agente
     with st.chat_message("assistant", avatar="🎸"):
         with st.spinner("Tom está consultando o catálogo e as normas da loja..."):
             reply, traces = st.session_state.agent.process_message(user_message)
 
-        st.markdown(reply)
+        st.markdown(sanitize_markdown(reply))
 
         if traces:
             with st.expander("🛠️ Bastidores: Ferramentas Acionadas pelo Agente", expanded=False):
