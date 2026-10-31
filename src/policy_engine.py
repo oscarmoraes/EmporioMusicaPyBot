@@ -1,0 +1,253 @@
+"""Motor de conhecimento normativo e políticas da Empório da Música.
+
+Indexa as seções estruturadas do manual 'políticas_da_loja.pdf' preservando
+tabelas e notas de exceção conjuntas, garantindo recuperação de alta precisão
+e detecção proativa de itens fora de escopo (acessórios não comercializados).
+"""
+
+import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from src.config import DATA_DIR, STORE_INFO
+
+
+class PolicyEngine:
+    """Gerencia a consulta estruturada às políticas e diretrizes internas da loja."""
+
+    def __init__(self, data_dir: Optional[Path] = None):
+        self.data_dir = Path(data_dir) if data_dir else DATA_DIR
+        self.pdf_path = self.data_dir / "políticas_da_loja.pdf"
+        self.sections: Dict[str, Dict[str, Any]] = {}
+        self._load_policy_sections()
+
+    def _load_policy_sections(self) -> None:
+        """Estrutura as 10 seções do manual com metadados e palavras-chave de busca."""
+        self.sections = {
+            "institucional": {
+                "title": "1. Sobre a Empório da Música & Escopo de Atuação",
+                "keywords": ["sobre", "historia", "fundacao", "endereco", "cnpj", "telefone", "onde fica", "localizacao", "missao", "contato"],
+                "content": (
+                    f"Razão Social: {STORE_INFO['legal_name']}\n"
+                    f"Nome Fantasia: {STORE_INFO['name']} (Fundada em 2008 em Campo Grande/MS)\n"
+                    f"CNPJ: {STORE_INFO['cnpj']}\n"
+                    f"Endereço: {STORE_INFO['address']}\n"
+                    f"Telefone Geral: {STORE_INFO['phone']} | WhatsApp Atendimento: {STORE_INFO['whatsapp_support']}\n"
+                    f"E-mail: {STORE_INFO['email']}\n"
+                    "Missão: Democratizar o acesso a instrumentos musicais de qualidade na região Centro-Oeste.\n"
+                    "ESCOPO EXCLUSIVO: Trabalhamos EXCLUSIVAMENTE com instrumentos musicais (guitarras, baixos, violões, baterias, teclados, sopros, cordas orquestrais e ukuleles).\n"
+                    "REGRA FUNDAMENTAL: NÃO comercializamos acessórios como cordas, palhetas, cabos, cases, pedais ou amplificadores. Pedidos desses itens devem ser educadamente redirecionados a lojas parceiras."
+                )
+            },
+            "horarios": {
+                "title": "2. Horário de Funcionamento",
+                "keywords": ["horario", "horarios", "funcionamento", "aberto", "abre", "fecha", "atendimento", "sabado", "domingo", "feriado"],
+                "content": (
+                    "Horário de atendimento presencial e WhatsApp:\n"
+                    "• Segunda a Sexta-feira: 09:00 às 18:00\n"
+                    "• Sábado: 09:00 às 13:00\n"
+                    "• Domingo e Feriados: Fechado\n"
+                    "Em datas comemorativas especiais (Black Friday, Aniversário da Loja, Natal), os horários podem ser estendidos com aviso prévio nas redes sociais."
+                )
+            },
+            "pagamento": {
+                "title": "3 e 3.1. Formas de Pagamento e Regras de Parcelamento",
+                "keywords": ["pagamento", "pix", "cartao", "credito", "debito", "boleto", "parcelamento", "parcelas", "juros", "desconto pix"],
+                "content": (
+                    "Formas de pagamento aceitas:\n"
+                    "• PIX: Pagamento à vista com 5% de desconto sobre o preço de tabela (ATENÇÃO: não cumulativo com produtos já em promoção).\n"
+                    "• Cartão de Débito: À vista, todas as bandeiras aceitas.\n"
+                    "• Boleto Bancário: À vista, compensação em até 3 dias úteis.\n"
+                    "• Cartão de Crédito: Até 12x SEM JUROS.\n\n"
+                    "Regras Específicas de Parcelamento no Cartão (Seção 3.1):\n"
+                    "• Em até 3x sem juros: sem valor mínimo de parcela (exceto abaixo de R$ 50,00).\n"
+                    "• De 4x a 6x sem juros: parcela mínima de R$ 80,00.\n"
+                    "• De 7x a 12x sem juros: parcela mínima de R$ 100,00.\n"
+                    "• Combinação de pagamentos (ex.: PIX + Cartão): permitida para compras acima de R$ 2.000,00."
+                )
+            },
+            "trocas_devolucoes": {
+                "title": "4. Política de Trocas e Devoluções (CDC)",
+                "keywords": ["troca", "trocar", "devolucao", "devolver", "arrependimento", "defeito", "cancelamento", "reembolso", "estorno", "prazo troca"],
+                "content": (
+                    "A Empório da Música segue rigorosamente o Código de Defesa do Consumidor (Lei nº 8.078/90):\n\n"
+                    "4.1 Direito de Arrependimento (Compras Online / WhatsApp):\n"
+                    "• O cliente pode solicitar a devolução em até 7 (sete) dias corridos após o recebimento do produto, sem necessidade de justificativa.\n"
+                    "• O produto deve estar em sua embalagem original, sem sinais de uso, acompanhado de todos os manuais e acessórios originais.\n"
+                    "• O frete de devolução por arrependimento é 100% por conta da loja.\n"
+                    "• O reembolso/estorno é realizado na mesma forma de pagamento original em até 10 dias úteis.\n\n"
+                    "4.2 Trocas por Defeito de Fabricação:\n"
+                    "• Produtos com defeito podem ser trocados diretamente na loja em até 30 (trinta) dias corridos após a compra.\n"
+                    "• Após os 30 dias (e até o término da garantia), o cliente aciona a garantia do fabricante, com intermediação da Empório da Música mediante solicitação.\n"
+                    "• Não são cobertos danos causados por mau uso, quedas, umidade excessiva ou intervenções de terceiros não autorizados.\n\n"
+                    "4.3 Trocas por Preferência (cor, modelo, tamanho):\n"
+                    "• Permitidas em até 7 dias, condicionadas à disponibilidade em estoque. Produto em perfeito estado na embalagem original.\n\n"
+                    "4.4 Itens NÃO Elegíveis para Troca:\n"
+                    "• Instrumentos com personalização ou ajustes sob encomenda (setup/regulagem especial sob medida);\n"
+                    "• Produtos adquiridos em liquidação com aviso expresso de 'venda final';\n"
+                    "• Boquilhas de instrumentos de sopro (por rígidas questões de higiene sanitária)."
+                )
+            },
+            "frete_entregas": {
+                "title": "5. Política de Frete, Entregas e Rastreamento",
+                "keywords": ["frete", "entrega", "prazo", "motoboy", "campo grande", "correios", "sedex", "pac", "jadlog", "rastreamento", "codigo rastreio"],
+                "content": (
+                    "5.1 Entregas na Região Metropolitana de Campo Grande/MS:\n"
+                    "• Frete GRÁTIS para pedidos acima de R$ 500,00.\n"
+                    "• Taxa fixa de R$ 35,00 para pedidos abaixo de R$ 500,00.\n"
+                    "• Prazo: 1 a 3 dias úteis (entrega por motoboy próprio; cliente contactado por telefone antes da entrega).\n\n"
+                    "5.2 Entregas para Outras Cidades e Estados:\n"
+                    "• PAC (Correios): 5 a 12 dias úteis (rastreamento e seguro inclusos).\n"
+                    "• SEDEX (Correios): 2 a 5 dias úteis (rastreamento e seguro inclusos).\n"
+                    "• Jadlog (.package): 3 a 8 dias úteis (rastreamento e seguro inclusos).\n"
+                    "• Instrumentos de grande porte (baterias acústicas, pianos digitais) podem demandar frete especial com cotação individual.\n"
+                    "• Em caso de avaria aparente no transporte, o cliente deve recusar a entrega no ato e acionar a loja imediatamente.\n\n"
+                    "5.3 Código de Rastreamento:\n"
+                    "• Enviado por e-mail e WhatsApp assim que despachado. Formato padrão: BR seguido de 9 caracteres alfanuméricos e BR (ex.: BR4K7M2X9P1BR)."
+                )
+            },
+            "promocoes": {
+                "title": "6. Regras de Promoções e Descontos",
+                "keywords": ["promocao", "promocoes", "desconto", "black friday", "aniversario", "queima", "semana do musico", "cumulativo", "campanha"],
+                "content": (
+                    "6.1 Campanhas Periódicas:\n"
+                    "• Aniversário da Loja (Agosto): 10% a 25% de desconto.\n"
+                    "• Black Friday (Novembro): 15% a 30% em todo o catálogo.\n"
+                    "• Volta às Aulas (Fevereiro): descontos para estudantes.\n"
+                    "• Semana do Músico (semana do dia 22 de Novembro).\n"
+                    "• Queima de Estoque pontual.\n\n"
+                    "6.2 Regras Estritas de Promoções:\n"
+                    "• NÃO CUMULATIVIDADE: O desconto de 5% no PIX NÃO se aplica sobre preços já promocionais.\n"
+                    "• ESTOQUE: Não há reserva de preço ('rain check') para itens promocionais esgotados.\n"
+                    "• TRANSPARÊNCIA: Preços promocionais devem sempre ser apresentados acompanhados do preço original de tabela e do percentual de desconto."
+                )
+            },
+            "atendimento_whatsapp": {
+                "title": "7. Diretrizes de Atendimento e Persona (Tom de Voz)",
+                "keywords": ["whatsapp", "tom de voz", "atendimento", "persona", "diretrizes", "fora de estoque", "descontinuado", "reclamacao"],
+                "content": (
+                    "7.1 Diretrizes de Atendimento:\n"
+                    "• Tom de voz: Informal mas profissional. Amigo que entende profundamente de música, acolhedor e prestativo. Evitar robotização.\n"
+                    "• Tempo de resposta: até 5 minutos no horário de funcionamento.\n"
+                    "• PRECISÃO OBRIGATÓRIA: Jamais fornecer informações de preço, estoque ou prazos sem consultar o sistema.\n"
+                    "• ESCOPO: Lembrar que a loja comercializa exclusivamente instrumentos musicais. Pedidos de cordas, palhetas, cabos, cases, pedais ou amplificadores devem ser educadamente redirecionados.\n\n"
+                    "7.3 Situações Especiais:\n"
+                    "• Fora de estoque: Informar indisponibilidade temporária e sugerir alternativas semelhantes disponíveis.\n"
+                    "• Descontinuado: Se sem estoque, informar que saiu de linha e sugerir sucessores ativos. Se houver saldo em estoque, aproveitar como oportunidade de Ponta de Estoque (últimas unidades).\n"
+                    "• Promoção expirada: Explicar com transparência que a promoção foi encerrada e apresentar o preço atual. Nunca prometer desconto não vigente.\n"
+                    "• Reclamações: Ouvir com empatia, registrar e informar prazo de retorno de 24 horas úteis."
+                )
+            },
+            "garantia": {
+                "title": "8. Garantia Legal e do Fabricante",
+                "keywords": ["garantia", "defeito", "assistencia", "conserto", "mau uso", "fabricante"],
+                "content": (
+                    "8.1 Garantia Legal:\n"
+                    "• Todos os produtos contam com garantia legal de 90 (noventa) dias contra defeitos de fabricação (CDC), a contar do recebimento.\n\n"
+                    "8.2 Garantia do Fabricante:\n"
+                    "• Varia de 6 meses a 2 anos dependendo da marca (detalhada no certificado que acompanha o produto).\n\n"
+                    "8.3 O que NÃO é coberto pela garantia:\n"
+                    "• Desgaste natural de peças (trastes, cordas originais, feltros, palhetas de sopro);\n"
+                    "• Danos decorrentes de mau uso, quedas, excesso de umidade ou calor;\n"
+                    "• Modificações ou manutenções por profissionais não autorizados;\n"
+                    "• Danos meramente estéticos que não afetem a tocabilidade e funcionalidade."
+                )
+            },
+            "privacidade_lgpd": {
+                "title": "9. Privacidade e Proteção de Dados (LGPD)",
+                "keywords": ["lgpd", "privacidade", "dados", "seguranca", "exclusao", "dados pessoais"],
+                "content": (
+                    "A Empório da Música cumpre integralmente a LGPD (Lei nº 13.709/2018).\n"
+                    "Dados cadastrais (nome, telefone, e-mail, endereço) são utilizados estritamente para faturamento, entrega e comunicação de pedidos.\n"
+                    "A loja não compartilha dados com terceiros para fins publicitários. O cliente pode solicitar a exclusão de seus dados a qualquer momento."
+                )
+            }
+        }
+
+    def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
+        """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""
+        accessory_patterns = [
+            r"\bcorda(s)?\b", r"\bencordoamento(s)?\b", r"\bpalheta(s)?\b",
+            r"\bcabo(s)?\b", r"\bcase(s)?\b", r"\bcapa(s)?\b", r"\bbag(s)?\b",
+            r"\bpedal\b", r"\bpedais\b", r"\bpedaleira(s)?\b", r"\bamplificador(es)?\b",
+            r"\bamp(s)?\b", r"\bafinador(es)?\b", r"\bsuporte(s)?\b", r"\bcorreia(s)?\b"
+        ]
+
+        text_lower = text.lower()
+        matched = []
+        for pat in accessory_patterns:
+            if re.search(pat, text_lower):
+                matched.append(pat.replace(r"\b", "").replace("(s)?", "s").replace("(es)?", "es"))
+
+        if matched:
+            return {
+                "is_out_of_scope": True,
+                "detected_items": matched,
+                "policy_instruction": (
+                    "Conforme a Seção 1 e Seção 7.1 do manual, a Empório da Música trabalha "
+                    "EXCLUSIVAMENTE com instrumentos musicais completos para garantir atendimento especializado, "
+                    "não comercializando acessórios como cordas, palhetas, cabos, cases, pedais ou amplificadores. "
+                    "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios."
+                )
+            }
+        return None
+
+    def retrieve_policies(self, query: str, specific_topic: Optional[str] = None) -> Dict[str, Any]:
+        """Recupera as seções normativas mais relevantes com base em tópico ou termos de busca."""
+        # Checa primeiro se há menção a acessórios fora de escopo
+        out_of_scope_alert = self.check_out_of_scope_accessory(query)
+
+        if specific_topic and specific_topic.lower() in self.sections:
+            sec = self.sections[specific_topic.lower()]
+            return {
+                "matched_topic": specific_topic.lower(),
+                "sections": [{
+                    "section_key": specific_topic.lower(),
+                    "title": sec["title"],
+                    "content": sec["content"]
+                }],
+                "out_of_scope_alert": out_of_scope_alert
+            }
+
+        # Busca baseada em pontuação de palavras-chave
+        q_tokens = set(re.findall(r"\w+", query.lower()))
+        scores: List[Tuple[str, int]] = []
+
+        for key, sec in self.sections.items():
+            score = 0
+            # Pontuação por keywords cadastradas
+            for kw in sec["keywords"]:
+                if kw in query.lower():
+                    score += 3
+            # Pontuação por termos no conteúdo
+            c_lower = sec["content"].lower()
+            for token in q_tokens:
+                if len(token) > 3 and token in c_lower:
+                    score += 1
+            if score > 0:
+                scores.append((key, score))
+
+        scores.sort(key=lambda x: x[1], reverse=True)
+
+        if not scores:
+            # Fallback: retorna institucional e atendimento
+            matched_keys = ["institucional", "atendimento_whatsapp"]
+        else:
+            # Retorna as 2 seções mais relevantes
+            matched_keys = [k for k, _ in scores[:2]]
+
+        retrieved = []
+        for k in matched_keys:
+            sec = self.sections[k]
+            retrieved.append({
+                "section_key": k,
+                "title": sec["title"],
+                "content": sec["content"]
+            })
+
+        return {
+            "query": query,
+            "total_sections_matched": len(retrieved),
+            "sections": retrieved,
+            "out_of_scope_alert": out_of_scope_alert
+        }
