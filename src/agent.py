@@ -142,13 +142,16 @@ class EmporioAgent:
                 })
 
             # Chamada ao modelo com o histórico completo e ferramentas disponíveis
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=messages_payload,
-                tools=AGENT_TOOLS,
-                tool_choice="auto",
-                temperature=self.temperature
-            )
+            create_kwargs: Dict[str, Any] = {
+                "model": self.model,
+                "messages": messages_payload,
+                "tools": AGENT_TOOLS,
+                "tool_choice": "auto",
+            }
+            if not self.model.startswith(("gpt-5", "o1", "o3", "o4")):
+                create_kwargs["temperature"] = self.temperature
+
+            response = self.client.chat.completions.create(**create_kwargs)
 
             response_msg = response.choices[0].message
             tool_calls = response_msg.tool_calls
