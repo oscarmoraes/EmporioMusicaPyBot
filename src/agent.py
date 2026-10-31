@@ -112,11 +112,8 @@ class EmporioAgent:
         iteration = 0
         turn_tool_traces: List[Dict[str, Any]] = []
 
-        # Verifica proativamente se há menção a acessórios fora do escopo da loja (Seção 1 e 7.1)
-        policy_reminders = []
-        acc_alert = self.policy_engine.check_out_of_scope_accessory(user_text)
-        if acc_alert:
-            policy_reminders.append(acc_alert["policy_instruction"])
+        # Aciona o classificador normativo pré-LLM do motor de políticas
+        policy_reminders = self.policy_engine.get_normative_reminders(user_text)
 
         while iteration < max_tool_iterations:
             iteration += 1

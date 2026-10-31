@@ -405,7 +405,10 @@ class DataEngine:
                 return w[:-1]
             return w
 
-        query_terms = [_stem_pt(t) for t in query.split()] if query else []
+        query_terms = [
+            _stem_pt(t) for t in re.findall(r"[\w-]+", query)
+            if normalize_text(t) not in ("de", "da", "do", "para", "com", "em", "um", "uma")
+        ] if query else []
 
         for p in raw_products:
             p_name = p["name"]
@@ -416,16 +419,20 @@ class DataEngine:
             except Exception:
                 specs_dict = {}
 
-            # Filtro textual tolerante a acentos e plural
+            # Filtro textual tolerante a acentos, pontuação e plural
             if query_terms:
-                combined_text = normalize_text(f"{p_name} {p_desc} {p_specs_raw} {p['category_name']}")
+                cat_stem = _stem_pt(p["category_name"])
+                combined_text = normalize_text(f"{p_name} {p_desc} {p_specs_raw} {p['category_name']} {cat_stem}")
                 if not all(term in combined_text for term in query_terms):
                     continue
 
-            # Filtros de specs (ex.: cordas de nylon ou aço)
+            # Filtros de specs (ex.: cordas de nylon, aço/steel ou quantidade de cordas no nome/spec)
             if strings_filter:
-                p_strings = normalize_text(specs_dict.get("strings", ""))
-                if normalize_text(strings_filter) not in p_strings:
+                sf_norm = normalize_text(strings_filter).replace("cordas", "").replace("corda", "").strip()
+                if sf_norm == "aco":
+                    sf_norm = "steel"
+                p_strings_and_name = normalize_text(f"{specs_dict.get('strings', '')} {p_name}")
+                if sf_norm and sf_norm not in p_strings_and_name:
                     continue
 
             # Filtro elétrico / eletroacústico
@@ -460,6 +467,7 @@ class DataEngine:
             pix_val = (
                 round(effective_price, 2) if has_promo else round(effective_price * 0.95, 2)
             ) if is_purchasable else None
+            pay_summary = self.calculate_payment_plans(orig_price, effective_price, has_promo) if is_purchasable else None
 
             item_data = {
                 "product_id": p["product_id"],
@@ -469,6 +477,10 @@ class DataEngine:
                 "original_price": orig_price,
                 "effective_price": effective_price,
                 "pix_price": pix_val,
+                "pix_5_percent_discount_applied": (not has_promo) if is_purchasable else False,
+                "max_installments_without_interest": (
+                    pay_summary["credit_card"]["max_installments_without_interest"] if pay_summary else None
+                ),
                 "has_active_promotion": has_promo,
                 "promotion_details": active_promo,
                 "expired_promotions": expired_promos,

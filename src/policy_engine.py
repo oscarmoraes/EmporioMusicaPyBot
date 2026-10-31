@@ -213,10 +213,45 @@ class PolicyEngine:
                     "EXCLUSIVAMENTE com instrumentos musicais completos para garantir atendimento especializado, "
                     "não comercializando acessórios como cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. "
                     "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios. "
-                    "Caso a mensagem contenha perguntas sobre temas fora do domínio da loja, recuse-as em no máximo 1 frase curta sem desenvolver o conteúdo alheio."
+                    "PROIBIÇÃO ESTRITA DE CONTEÚDO FORA DO DOMÍNIO: caso a mensagem também peça receitas culinárias, previsão do tempo ou assuntos não musicais, recuse em 1 frase curta e NUNCA liste ingredientes nem modo de preparo."
                 )
             }
         return None
+
+    def get_normative_reminders(self, text: str) -> List[str]:
+        """Classificador normativo pré-LLM: retorna lembretes de conformidade das seções críticas acionadas pelo texto."""
+        reminders: List[str] = []
+        acc_alert = self.check_out_of_scope_accessory(text)
+        if acc_alert:
+            reminders.append(acc_alert["policy_instruction"])
+
+        norm_t = normalize_text(text)
+
+        # Seção 7.3 — Promoções Expiradas
+        if any(kw in norm_t for kw in ["anuncio antigo", "black friday", "pascoa", "semana do musico", "liquidacao de inverno"]):
+            reminders.append(
+                "DIRETRIZ SEÇÃO 7.3 (Promoção Expirada): Confirme explicitamente que essa promoção anterior existiu mas JÁ EXPIROU/ENCERROU, mostre o preço atual vigente e destaque os 5% de desconto à vista no PIX."
+            )
+
+        # Seção 10 — Casos Omissos / Propostas Comerciais (usados, locação, atacado)
+        if any(kw in norm_t for kw in ["usado", "base de troca", "parte do pagamento", "parte de pagamento", "aluguel", "alugar", "locacao", "atacado", "cnpj", "escola"]):
+            reminders.append(
+                "DIRETRIZ SEÇÃO 10 (Disposições Finais): Explique que a loja trabalha apenas com venda de instrumentos novos (sem aluguel, usados na troca ou desconto extra além dos 5% no PIX), mas informe explicitamente que pode CONSULTAR A GERÊNCIA ((67) 3341-4444 / contato@emporiodamusica.com.br) para avaliar a proposta."
+            )
+
+        # Seções 4.4 e 8.3 — Itens Inelegíveis por Higiene e Exclusão por Desgaste Natural
+        if any(kw in norm_t for kw in ["boquilha", "palheta de sopro", "palhetas de sopro"]):
+            reminders.append(
+                "DIRETRIZ SEÇÕES 4.4 E 8.3: Informe expressamente que boquilhas de sopro NÃO têm troca/devolução por questões de higiene sanitária (Seção 4.4) e que palhetas/cordas/peles são itens de desgaste natural não cobertos pela garantia (Seção 8.3)."
+            )
+
+        # Seções 5.1 e 5.2 — Frete Interior e Instrumentos de Grande Porte
+        if any(kw in norm_t for kw in ["frete", "entrega", "bateria acustica", "baterias acusticas", "piano digital", "interior", "dourados", "tres lagoas", "corumba", "ponta pora"]):
+            reminders.append(
+                "DIRETRIZ SEÇÕES 5.1 E 5.2 (Frete e Grande Porte): Frete grátis acima de R$ 500,00 é EXCLUSIVO para Campo Grande. Para outras cidades, o envio é pago via PAC (5–12 dias úteis), SEDEX (2–5 dias úteis) ou Jadlog (3–8 dias úteis). Instrumentos de grande porte (baterias acústicas, pianos digitais e contrabaixos acústicos) exigem frete especial com cotação individual."
+            )
+
+        return reminders
 
     def retrieve_policies(self, query: str, specific_topic: Optional[str] = None) -> Dict[str, Any]:
         """Recupera as seções normativas mais relevantes com base em tópico ou termos de busca."""
