@@ -229,16 +229,17 @@ Além dos testes determinísticos, submetemos o agente completo a três experime
      2. **Payloads *Single-Hop* e *Context Pruning* (`src/data_engine.py`):** Inclusão de `pix_price` diretamente nos resultados de `search_catalog` (evitando chamadas redundantes em loop a `get_product_details_and_pricing`) e omissão de planos de pagamento/PIX quando `stock_quantity == 0` ou `status == "coming_soon"` (impedindo que modelos menores vazem o preço PIX de itens esgotados).
      3. **Guardrail Negativo Estrito contra *Literal Instruction Following* (`src/agent.py` e `src/policy_engine.py`):** Proibição explícita de redigir receitas culinárias ou listas fora do domínio (no *baseline*, o `gpt-5-nano` havia escrito uma receita completa de bolo de milho no `CASE_19`).
      4. **Restrição de Concisão e Sanitização Determinística de Saída:** Limite de extensão para leitura fluida no celular e correção pós-processamento de domínio oficial (`contato@emporiodamusica.com.br`).
-   - **Resultado Comparativo nos 35 Cenários (`gpt-4o-mini` vs. `gpt-5-nano` Baseline vs. `gpt-5-nano` Otimizado):**
+   - **Resultado Comparativo nos 35 Cenários (`gpt-4o` Flagship vs. `gpt-4o-mini` Padrão vs. `gpt-5-nano`):**
 
-| Métrica (35 Cenários End-to-End) | `gpt-4o-mini` (Padrão) | `gpt-5-nano` (Baseline) | `gpt-5-nano` (Pós-Otimização Arquitetural) |
-| :--- | :---: | :---: | :---: |
-| **Latência Média por Turno** | **~3,1 s** | 25,14 s | **6,41 s (-74,5%)** |
-| **Latência Máxima (Pior Caso)** | **~5,8 s** | 47,36 s | **10,03 s (-78,8%)** |
-| **Total de *Tool Calls* (35 casos)** | **45** | 65 | **51 (-21,5%)** |
-| **Extensão Média da Resposta** | **~165 palavras** | 311,3 palavras | **224,0 palavras (-28,0%)** |
-| **Guardrail `CASE_19` (Bolo de Milho)** | ✅ Recusou com humor | ❌ Escreveu a receita inteira | ✅ **Recusou em 1 frase curta** |
-| **Vazamento PIX Item Esgotado (`CASES 01/02`)** | ✅ Sem vazamento | ❌ Citou PIX do item sem estoque | ✅ **100% eliminado (*Context Pruning*)** |
+| Métrica (35 Cenários End-to-End) | `gpt-4o` (Superior / Flagship) | `gpt-4o-mini` (Padrão Recomendado) | `gpt-5-nano` (Baseline) | `gpt-5-nano` (Pós-Otimização Arquitetural) |
+| :--- | :---: | :---: | :---: | :---: |
+| **Precisão Funcional (35 casos)** | **35/35 (100%)** | **35/35 (100%)** | 29/35 (82,8%) | **34/35 (97,1%)** |
+| **Latência Média por Turno** | **3,46 s** | **3,36 s** | 25,14 s | **6,41 s (-74,5%)** |
+| **Latência Máxima (Pior Caso)** | **7,51 s** | **8,05 s** | 47,36 s | **10,03 s (-78,8%)** |
+| **Total de *Tool Calls* (35 casos)** | **47** | **45** | 65 | **51 (-21,5%)** |
+| **Extensão Média da Resposta** | **124,9 palavras** | **~165 palavras** | 311,3 palavras | **224,0 palavras (-28,0%)** |
+| **Guardrail `CASE_19` (Bolo de Milho)** | ✅ Recusou com concisão | ✅ Recusou com humor | ❌ Escreveu a receita inteira | ✅ **Recusou em 1 frase curta** |
+| **Vazamento PIX Item Esgotado (`CASES 01/02`)** | ✅ Sem vazamento | ✅ Sem vazamento | ❌ Citou PIX do item sem estoque | ✅ **100% eliminado (*Context Pruning*)** |
 
 ---
 
