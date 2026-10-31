@@ -118,9 +118,21 @@ class EmporioAgent:
             policy_reminders.append(
                 "DIRETRIZ SEÇÃO 7.3 (Promoção Expirada): Confirme explicitamente na resposta que essa promoção passada (ex: Black Friday / Páscoa) existiu no histórico mas JÁ EXPIROU/ENCERROU, não sendo possível aplicar o desconto vencido. Em seguida, mostre o preço atual e os 5% de desconto no PIX."
             )
-        if any(kw in u_lower for kw in ["usado", "base de troca", "parte do pagamento", "parte de pagamento", "aluguel", "alugar", "locação"]):
+        if any(kw in u_lower for kw in ["usado", "base de troca", "parte do pagamento", "parte de pagamento", "aluguel", "alugar", "locação", "atacado", "cnpj", "escola"]):
             policy_reminders.append(
-                "DIRETRIZ SEÇÃO 10 (Disposições Finais): Informe que a loja trabalha apenas com a venda de instrumentos novos (não faz aluguel nem aceita usados na troca), mas mencione explicitamente que pode CONSULTAR A GERÊNCIA para avaliar propostas ou casos especiais."
+                "DIRETRIZ SEÇÃO 10 (Disposições Finais): Informe as regras oficiais do manual (ex: venda exclusiva de instrumentos novos, sem tabela de aluguel, usados na troca ou desconto extra de atacado além dos 5% no PIX). Se o cliente pedir múltiplas unidades, apresente o valor unitário e o VALOR TOTAL do lote (preço de tabela e com 5% no PIX), e mencione explicitamente que pode CONSULTAR OU ENCAMINHAR À GERÊNCIA ((67) 3341-4444 / contato@emporiodamusica.com.br) para avaliar propostas comerciais ou descontos especiais."
+            )
+        if any(kw in u_lower for kw in ["boquilha", "boquilhas", "palheta de sopro", "palhetas de sopro"]):
+            policy_reminders.append(
+                "DIRETRIZ SEÇÕES 4.4 E 8.3 (Instrumentos de Sopro): Informe expressamente que: (1) Boquilhas de instrumentos de sopro NÃO são elegíveis para troca ou devolução por questões de higiene sanitária (Seção 4.4); e (2) Palhetas de sopro (assim como cordas, trastes e feltros) são itens de desgaste natural e NÃO são cobertas pela garantia (Seção 8.3)."
+            )
+        if any(kw in u_lower for kw in ["três lagoas", "tres lagoas", "dourados", "corumbá", "corumba", "ponta porã", "ponta pora", "interior"]):
+            policy_reminders.append(
+                "DIRETRIZ SEÇÃO 5.1 E 5.2 (Frete Interior vs Capital): O frete grátis acima de R$ 500,00 é EXCLUSIVO para a Região Metropolitana de Campo Grande! Para cidades do interior (como Três Lagoas, Dourados, Corumbá, Ponta Porã), NÃO existe frete grátis por valor acima de R$ 500,00: o frete é cobrado à parte e enviado via Correios (PAC: 5 a 12 dias úteis / SEDEX: 2 a 5 dias úteis) ou Jadlog (3 a 8 dias úteis). Além disso, instrumentos de grande porte (como baterias acústicas, pianos digitais e contrabaixos acústicos) podem exigir frete especial com cotação individual (Seção 5.2)."
+            )
+        if "quais baterias" in u_lower or "todos os teclados" in u_lower:
+            policy_reminders.append(
+                "DIRETRIZ DE CATÁLOGO: Liste TODOS os modelos disponíveis retornados pela ferramenta search_products_catalog (ex.: todas as 3 baterias acústicas ou todos os 3 sintetizadores), sem omitir nenhum modelo em estoque."
             )
 
         while iteration < max_tool_iterations:

@@ -91,7 +91,7 @@ with st.sidebar:
     st.markdown(f"**Horário:**\n- {STORE_INFO['hours']['weekdays']}\n- {STORE_INFO['hours']['saturday']}")
 
     st.divider()
-    st.markdown("### ⚡ Central de Testes (27 Cenários)")
+    st.markdown("### ⚡ Central de Testes (37 Cenários)")
     st.caption("Selecione a bateria e clique em um cenário para enviar ao Tom:")
 
     scenario_batteries = {
@@ -133,6 +133,18 @@ with st.sidebar:
             "18. Atendimento Domingo & Horário Sábado": "Olá! Estou mandando mensagem no domingo à noite. Tem algum vendedor na loja agora? E no sábado até que horas posso ir aí testar uma bateria?",
             "19. Fora de Domínio + Acessório + Telecaster": "Qual a previsão do tempo em Campo Grande hoje e a receita de bolo de milho? Ah, e quero comprar um cabo P10, um pedal de distorção e uma guitarra Fender Telecaster.",
             "20. Usado na Troca / Aluguel (Gerência)": "Vocês aceitam meu violão usado como parte do pagamento (base de troca) ou fazem aluguel de instrumentos para eventos em Campo Grande?"
+        },
+        "🔥 Bateria F: Casos Avançados Extras (21-30)": {
+            "21. Promoção Crafter HT-100 vs Pagto Combinado": "Vi que o violão Crafter HT-100 Folk Aço Natural tem preço de tabela de R$ 2.399,00. Como ele passa de R$ 2.000, posso dar R$ 900 de entrada no PIX com mais 5% de desconto e parcelar o restante no cartão de crédito?",
+            "22. Homônimos Bruno Martins & Frete Interior (#10)": "Olá! Meu e-mail é bruno.martins@jmail.com, sou de Três Lagoas. Quero saber se o meu baixo Music Man do pedido #10 já tem código de rastreio e se o frete saiu grátis por passar de R$ 500.",
+            "23. Boleto Vencido (#19) & Garantia >90d (#1)": "Aqui é o Pedro Henrique Oliveira (pedro.oliveira@jmail.com). Por que o meu pedido #19 do Taylor 214ce no boleto foi cancelado? Aproveitando, o Martin D-28 que comprei no pedido #1 em outubro do ano passado ainda está na garantia da loja se der defeito hoje?",
+            "24. Cancelado s/ Estoque (#18) & Rozini Hoje": "Sou o Gustavo Teixeira Nunes (gustavo.nunes@inlook.com), de Ponta Porã. Vi que meu pedido #18 foi cancelado. Qual foi o motivo, qual o prazo de reembolso na forma de pagamento original e esse violão Rozini RC-104 já voltou pro estoque hoje?",
+            "25. Cancelado no PIX (#17) & Troca por Preferência": "Oi, sou o Matheus Ramos Correia (matheus.correia@hayoo.com.br). Quero confirmar se meu pedido #17 pago no PIX foi cancelado mesmo e em quantos dias úteis sai o reembolso. Se eu comprar outro violão hoje e quiser trocar de modelo em até 7 dias por um mais caro, como funciona a diferença de valor?",
+            "26. Promoções Ativas (Taylor 110e vs Kalani Tenor)": "Quero aproveitar as promoções de hoje! Vocês têm desconto ativo no violão Taylor 110e Dreadnought e no ukulele Kalani KAL-700T Tenor? Me passe o preço original, o preço promocional e em quantas vezes sem juros consigo parcelar cada um separado.",
+            "27. Baterias Acústicas, Frete Grande Porte & Pele": "Quais baterias acústicas vocês têm em estoque hoje? Moro em Dourados/MS: o frete de bateria acústica segue a tabela comum ou tem regra especial? E se eu rasgar a pele ou amassar o casco numa queda no show, a garantia cobre?",
+            "28. Sintetizadores (Korg/Roland/Nord) + Acessórios": "Me mostre todos os teclados e sintetizadores disponíveis no catálogo, do mais barato ao mais caro. Quero levar o Korg Synth 1 Pro junto com um pedal de sustain, um suporte em X e um cabo P10. Quanto fica tudo?",
+            "29. Orquestra (Categorias Vazias) & Sopro Higiene": "Estou montando uma orquestra escolar e preciso comprar 2 violinos, 1 violoncelo, 1 saxofone alto e 1 trompete. Vocês têm esses instrumentos em estoque? E se comprarmos instrumentos de sopro, qual é a regra da loja sobre troca de boquilhas e garantia de palhetas de sopro?",
+            "30. Lote Escola 5x Yamaha C40 & Atacado CNPJ": "Sou diretor de uma escola de música aqui em Campo Grande e quero comprar 5 unidades do violão Yamaha C40 Nylon Natural de uma vez no PIX. Vocês têm estoque pra isso hoje? Além dos 5% do PIX, consigo mais 15% de desconto de atacado para CNPJ?"
         }
     }
 

@@ -367,5 +367,130 @@ def test_case_20_escalonamento_gerencia_usados_e_aluguel(policy_engine):
     sec_keys = [s["section_key"] for s in pol["sections"]]
     assert "disposicoes_finais" in sec_keys
     contents = " ".join([s["content"] for s in pol["sections"]])
-    assert "consultar a gerência" in contents
+    assert "gerência" in contents
+
+
+# --- BATERIA F: 10 Novos Cenários Avançados de Ponta a Ponta (Casos 21 a 30) ---
+
+def test_case_21_desconto_ativo_crafter_ht100_derruba_pagamento_combinado(data_engine):
+    """Caso 21: Promoção ativa de 18% no Crafter HT-100 reduz preço de R$ 2.399 para R$ 1.967,18 (< R$ 2.000)."""
+    prod = data_engine.get_product_details("Crafter HT-100")
+    assert prod["found"] is True
+    assert prod["original_price"] == 2399.0
+    assert prod["has_active_promotion"] is True
+    assert prod["effective_price"] == 1967.18
+    assert prod["payment_conditions"]["pix"]["discount_applied"] is False
+    assert prod["payment_conditions"]["combined_payment"]["allowed"] is False
+
+
+def test_case_22_homonimos_bruno_martins_e_pedido_10_confirmado_tres_lagoas(data_engine):
+    """Caso 22: Busca por 'Bruno Martins' ou e-mail duplicado localiza o Pedido #10 (confirmed, R$ 8.732, Três Lagoas)."""
+    res_email = data_engine.lookup_orders(customer_query="bruno.martins@jmail.com")
+    assert res_email["found"] is True
+    assert res_email["orders"][0]["order_id"] == 10
+    assert res_email["orders"][0]["status"] == "confirmed"
+    assert res_email["orders"][0]["customer"]["city"] == "Três Lagoas"
+
+    res_name = data_engine.lookup_orders(customer_query="Bruno Martins")
+    assert res_name["found"] is True
+    assert res_name["orders"][0]["order_id"] == 10
+
+
+def test_case_23_historico_duplo_pedro_oliveira_boleto_cancelado_e_garantia_expirada(data_engine):
+    """Caso 23: Pedro Henrique Oliveira possui Pedido #1 (entregue há 151 dias, fora dos 90d) e Pedido #19 (boleto não confirmado)."""
+    res = data_engine.lookup_orders(customer_query="Pedro Oliveira")
+    assert res["found"] is True
+    assert res["total_orders"] == 2
+    by_id = {o["order_id"]: o for o in res["orders"]}
+    assert by_id[19]["status"] == "cancelled"
+    assert "Pagamento não confirmado" in by_id[19]["notes"]
+    assert by_id[1]["status"] == "delivered"
+    assert by_id[1]["return_and_warranty_analysis"]["days_since_estimated_delivery"] == 151
+    assert by_id[1]["return_and_warranty_analysis"]["within_90d_legal_warranty"] is False
+
+
+def test_case_24_pedido_18_cancelado_sem_estoque_mas_rozini_rc104_disponivel_hoje(data_engine):
+    """Caso 24: Pedido #18 (Gustavo Nunes) cancelado por falta de estoque na época, mas Rozini RC-104 tem 10 un. hoje."""
+    res = data_engine.lookup_orders(order_id=18)
+    assert res["found"] is True
+    o18 = res["orders"][0]
+    assert o18["status"] == "cancelled"
+    assert "Item fora de estoque" in o18["notes"]
+
+    prod = data_engine.get_product_details("Rozini RC-104")
+    assert prod["found"] is True
+    assert prod["status"] == "active"
+    assert prod["stock_quantity"] == 10
+    assert prod["effective_price"] == 459.9
+
+
+def test_case_25_pedido_17_cancelado_antes_processamento_e_troca_preferencia(data_engine, policy_engine):
+    """Caso 25: Pedido #17 (Matheus Correia) cancelado antes do processamento e política de troca por preferência (Seção 4.3)."""
+    res = data_engine.lookup_orders(order_id=17)
+    assert res["found"] is True
+    assert res["orders"][0]["status"] == "cancelled"
+    assert "antes do processamento" in res["orders"][0]["notes"]
+
+    pol = policy_engine.retrieve_policies("trocar de modelo por preferência diferença de valor")
+    contents = " ".join([s["content"] for s in pol["sections"]])
+    assert "4.3 Trocas por Preferência" in contents
+
+
+def test_case_26_promocoes_ativas_taylor_110e_e_kalani_tenor(data_engine):
+    """Caso 26: Promoções ativas no Taylor 110e (8% OFF -> R$ 5.519,08 em 12x) e Kalani KAL-700T (10% OFF -> R$ 323,10 em 4x)."""
+    taylor = data_engine.get_product_details("Taylor 110e")
+    assert taylor["has_active_promotion"] is True
+    assert taylor["effective_price"] == 5519.08
+    assert taylor["payment_conditions"]["credit_card"]["max_installments_without_interest"] == 12
+
+    kalani = data_engine.get_product_details("Kalani KAL-700T")
+    assert kalani["has_active_promotion"] is True
+    assert kalani["effective_price"] == 323.10
+    assert kalani["payment_conditions"]["credit_card"]["max_installments_without_interest"] == 4
+
+
+def test_case_27_baterias_acusticas_frete_grande_porte_e_exclusao_pele_queda(data_engine, policy_engine):
+    """Caso 27: Listagem das 3 baterias acústicas, frete especial de grande porte (Seção 5.2) e exclusão de garantia (Seção 8.3)."""
+    drums = data_engine.search_catalog(category="Baterias e Percussão")
+    assert len(drums["available_products"]) == 3
+
+    pol_ship = policy_engine.retrieve_policies("frete bateria acústica grande porte Dourados")
+    assert "INSTRUMENTOS DE GRANDE PORTE" in " ".join([s["content"] for s in pol_ship["sections"]])
+
+    pol_war = policy_engine.retrieve_policies("garantia pele rasgada queda mau uso")
+    assert "8.3 O que NÃO é coberto pela garantia" in " ".join([s["content"] for s in pol_war["sections"]])
+
+
+def test_case_28_teclados_sintetizadores_e_bloqueio_pedal_suporte_cabo(data_engine, policy_engine):
+    """Caso 28: Busca dos 3 teclados sintetizadores (Korg, Roland, Nord) e bloqueio de pedal/suporte/cabo avulso."""
+    keys = data_engine.search_catalog(category="Teclados e Pianos")
+    assert len(keys["available_products"]) == 3
+    prices = sorted([p["effective_price"] for p in keys["available_products"]])
+    assert prices == [1127.0, 9351.0, 19567.0]
+
+    acc = policy_engine.check_out_of_scope_accessory("Quero levar o Korg Synth 1 Pro junto com um pedal de sustain, um suporte em X e um cabo P10")
+    assert acc is not None
+    assert acc["is_out_of_scope"] is True
+
+
+def test_case_29_categorias_vazias_orquestra_e_higiene_boquilha_palheta_sopro(data_engine, policy_engine):
+    """Caso 29: Categorias vazias (Cordas Orquestrais e Sopros) e não falso-positivo em 'palhetas de sopro'."""
+    orq = data_engine.search_catalog(category="Cordas Orquestrais")
+    assert len(orq["available_products"]) == 0
+
+    acc = policy_engine.check_out_of_scope_accessory("qual a regra sobre troca de boquilhas e garantia de palhetas de sopro?")
+    assert acc is None
+
+
+def test_case_30_compra_lote_escola_yamaha_c40_e_escalonamento_atacado(data_engine, policy_engine):
+    """Caso 30: Estoque de 12 unidades do Yamaha C40 (R$ 599,90) para lote de 5 un. e escalonamento de desconto CNPJ à gerência."""
+    c40 = data_engine.get_product_details("Yamaha C40 Nylon")
+    assert c40["found"] is True
+    assert c40["stock_quantity"] == 12
+    assert c40["effective_price"] == 599.9
+
+    pol = policy_engine.retrieve_policies("desconto de atacado para CNPJ escola de música lote")
+    sec_keys = [s["section_key"] for s in pol["sections"]]
+    assert "disposicoes_finais" in sec_keys
+
 

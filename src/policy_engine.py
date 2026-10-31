@@ -142,14 +142,14 @@ class PolicyEngine:
             },
             "garantia": {
                 "title": "8. Garantia Legal e do Fabricante",
-                "keywords": ["garantia", "defeito", "assistencia", "conserto", "mau uso", "fabricante", "luthier", "eletrica", "captador", "estourou", "terceiros", "modificacao"],
+                "keywords": ["garantia", "defeito", "assistencia", "conserto", "mau uso", "fabricante", "luthier", "eletrica", "captador", "estourou", "terceiros", "modificacao", "pele", "peles", "queda", "amassar", "estetico", "palhetas de sopro"],
                 "content": (
                     "8.1 Garantia Legal:\n"
                     "• Todos os produtos contam com garantia legal de 90 (noventa) dias contra defeitos de fabricação (CDC), a contar do recebimento.\n\n"
                     "8.2 Garantia do Fabricante:\n"
                     "• Varia de 6 meses a 2 anos dependendo da marca (detalhada no certificado que acompanha o produto).\n\n"
                     "8.3 O que NÃO é coberto pela garantia (EXCLUSÃO IMEDIATA DE GARANTIA):\n"
-                    "• Desgaste natural de peças (trastes, cordas estouradas/gastas, feltros, palhetas de sopro);\n"
+                    "• Desgaste natural de peças (trastes, cordas estouradas/gastas, feltros, peles de bateria, palhetas de sopro);\n"
                     "• Danos decorrentes de mau uso, quedas, exposição a condições climáticas extremas;\n"
                     "• Modificações, ajustes na parte elétrica/captadores ou reparos realizados por terceiros/luthiers NÃO autorizados (isso anula a cobertura da garantia para o defeito);\n"
                     "• Danos meramente estéticos que não afetem a funcionalidade do instrumento."
@@ -170,21 +170,22 @@ class PolicyEngine:
             },
             "disposicoes_finais": {
                 "title": "10. Disposições Finais e Escalonamento à Gerência",
-                "keywords": ["gerencia", "gerente", "duvida", "usado", "usados", "base de troca", "aluguel", "locacao", "consignacao", "excecao"],
+                "keywords": ["gerencia", "gerente", "duvida", "usado", "usados", "base de troca", "aluguel", "locacao", "consignacao", "excecao", "atacado", "lote", "escola", "cnpj"],
                 "content": (
                     "10. Disposições Finais:\n"
                     "• Este manual é referência obrigatória para toda a equipe de atendimento e assistente virtual.\n"
-                    "• A loja comercializa exclusivamente instrumentos musicais novos (não há modalidade prevista no manual para aluguel/locação ou recebimento de instrumentos usados como parte de pagamento).\n"
-                    "• Em caso de dúvidas sobre a aplicação de qualquer política ou solicitações comerciais atípicas, o atendente deve consultar a gerência antes de fornecer informações definitivas ao cliente, garantindo transparência, precisão e a melhor experiência possível."
+                    "• A loja comercializa exclusivamente instrumentos musicais novos (não há modalidade prevista no manual para aluguel/locação, recebimento de instrumentos usados como parte de pagamento ou descontos extras de atacado/CNPJ além dos 5% à vista no PIX).\n"
+                    "• Em caso de dúvidas sobre a aplicação de qualquer política ou solicitações comerciais atípicas (como propostas corporativas/atacado, locação ou usados), o atendente deve consultar ou encaminhar à gerência ((67) 3341-4444 / (67) 3321-4500 ou contato@emporiodamusica.com.br) antes de fornecer informações definitivas ao cliente."
                 )
             }
         }
 
     def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
         """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""
-        # Remove menções legítimas a especificações de instrumentos (ex: '7 cordas', '4 cordas', 'cordas orquestrais')
+        # Remove menções legítimas a especificações de instrumentos ou cláusulas de garantia de sopro
         cleaned = re.sub(r"\b\d+\s*cordas\b", "", text.lower())
         cleaned = re.sub(r"\bcordas\s+(orquestrais|de\s+nylon|de\s+aco|de\s+aço|nylon|aco|aço)\b", "", cleaned)
+        cleaned = re.sub(r"\bpalheta(s)?\s+de\s+sopro\b", "", cleaned)
 
         accessory_patterns = [
             r"\bcorda(s)?\b", r"\bencordoamento(s)?\b", r"\bpalheta(s)?\b",

@@ -395,7 +395,17 @@ class DataEngine:
         discontinued_items = []
         coming_soon_items = []
 
-        query_terms = [normalize_text(t) for t in query.split()] if query else []
+        def _stem_pt(word: str) -> str:
+            w = normalize_text(word)
+            if w.endswith("oes"):
+                return w[:-3] + "ao"
+            if w.endswith("res") and len(w) > 4:
+                return w[:-2]
+            if w.endswith("s") and len(w) > 3:
+                return w[:-1]
+            return w
+
+        query_terms = [_stem_pt(t) for t in query.split()] if query else []
 
         for p in raw_products:
             p_name = p["name"]
@@ -406,9 +416,9 @@ class DataEngine:
             except Exception:
                 specs_dict = {}
 
-            # Filtro textual tolerante a acentos
+            # Filtro textual tolerante a acentos e plural
             if query_terms:
-                combined_text = normalize_text(f"{p_name} {p_desc} {p_specs_raw}")
+                combined_text = normalize_text(f"{p_name} {p_desc} {p_specs_raw} {p['category_name']}")
                 if not all(term in combined_text for term in query_terms):
                     continue
 
@@ -598,6 +608,9 @@ class DataEngine:
                 sim_price = float(sim["price_brl"])
                 if sim_active_promo:
                     sim_price = round(sim_price * (1 - sim_active_promo["discount_percent"] / 100.0), 2)
+                    sim_pix = sim_price
+                else:
+                    sim_pix = round(sim_price * 0.95, 2)
                 sim_norm_name = normalize_text(sim["name"])
                 subtype_match = any(st in sim_norm_name for st in subtypes) if subtypes else False
                 price_diff = abs(sim_price - effective_price)
@@ -605,11 +618,18 @@ class DataEngine:
                     "product_id": sim["product_id"],
                     "name": sim["name"],
                     "price": sim_price,
+                    "pix_price_5_percent_off": sim_pix,
                     "stock_quantity": sim["stock_quantity"]
                 }))
 
             scored_candidates.sort(key=lambda x: (x[0], x[1]))
             similar_options = [item[2] for item in scored_candidates[:4]]
+
+        if stock == 0 or status == "coming_soon":
+            payment_plans["unavailable_item_warning"] = (
+                "ATENÇÃO: Este produto NÃO está disponível para pronta entrega hoje (sem estoque ou em pré-venda). "
+                "NÃO ofereça compra nem desconto no PIX para este item indisponível; apresente os preços e o desconto no PIX apenas dos modelos similares disponíveis em similar_available_alternatives."
+            )
 
         # Montagem do status comercial e diretrizes da Seção 7.3
         status_guidance = ""
@@ -691,7 +711,11 @@ class DataEngine:
             WHERE 1=1
         """
         params = []
-        if order_id:
+        if order_id and customer_query:
+            term = f"%{customer_query.strip()}%"
+            sql += " AND (o.order_id = ? OR c.name LIKE ? OR c.phone LIKE ? OR c.email LIKE ?)"
+            params.extend([order_id, term, term, term])
+        elif order_id:
             sql += " AND o.order_id = ?"
             params.append(order_id)
         elif tracking_code:
@@ -704,6 +728,25 @@ class DataEngine:
 
         cur.execute(sql, params)
         orders_rows = cur.fetchall()
+
+        # Fallback por tokens normalizados para nomes compostos / homônimos (ex: 'Bruno Martins' -> 'Bruno Carvalho Martins')
+        if not orders_rows and customer_query:
+            q_tokens = [t for t in re.findall(r"\w+", normalize_text(customer_query)) if len(t) >= 2]
+            if q_tokens:
+                cur.execute("""
+                    SELECT o.*, c.name as customer_name, c.phone as customer_phone,
+                           c.email as customer_email, c.city as customer_city
+                    FROM orders o
+                    JOIN customers c ON o.customer_id = c.customer_id
+                """)
+                all_orders = cur.fetchall()
+                orders_rows = [
+                    r for r in all_orders
+                    if all(
+                        tok in normalize_text(f"{r['customer_name']} {r['customer_email']} {r['customer_phone']}")
+                        for tok in q_tokens
+                    )
+                ]
 
         if not orders_rows:
             return {
@@ -808,6 +851,18 @@ class DataEngine:
             elif status == "cancelled":
                 return_eligibility["regret_status"] = f"Pedido já cancelado. Motivo registrado: {o['notes'] or 'Não informado'}."
 
+            cust_city = o["customer_city"]
+            if normalize_text(cust_city) == "campo grande":
+                shipping_rule_note = (
+                    "Cliente em Campo Grande/MS (Seção 5.1): Frete GRÁTIS para pedidos acima de R$ 500,00 (motoboy em 1 a 3 dias úteis); "
+                    "taxa fixa de R$ 35,00 abaixo de R$ 500,00."
+                )
+            else:
+                shipping_rule_note = (
+                    f"ATENÇÃO — CLIENTE DO INTERIOR ({cust_city}/MS — Seção 5.1 e 5.2): O frete grátis acima de R$ 500,00 é EXCLUSIVO para Campo Grande! "
+                    f"Para {cust_city}, NÃO há frete grátis por valor; o envio é cobrado à parte e realizado via Correios (PAC: 5 a 12 dias úteis / SEDEX: 2 a 5 dias úteis) ou Jadlog (3 a 8 dias úteis)."
+                )
+
             orders_result.append({
                 "order_id": oid,
                 "customer": {
@@ -815,14 +870,15 @@ class DataEngine:
                     "name": o["customer_name"],
                     "phone": o["customer_phone"],
                     "email": o["customer_email"],
-                    "city": o["customer_city"]
+                    "city": cust_city
                 },
                 "order_date": order_date_str,
                 "status": status,
                 "total_brl": float(o["total_brl"]),
                 "payment_method": o["payment_method"],
-                "tracking_code": o["tracking_code"] or "Ainda não gerado",
+                "tracking_code": o["tracking_code"] or "Ainda não gerado (aguardando despacho / mudança para status 'shipped')",
                 "estimated_delivery": estimated_del_str or "Em definição",
+                "shipping_policy_for_customer_city": shipping_rule_note,
                 "notes": o["notes"],
                 "items": items,
                 "return_and_warranty_analysis": return_eligibility
