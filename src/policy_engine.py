@@ -41,14 +41,15 @@ class PolicyEngine:
                 )
             },
             "horarios": {
-                "title": "2. Horário de Funcionamento",
-                "keywords": ["horario", "horarios", "funcionamento", "aberto", "abre", "fecha", "atendimento", "sabado", "domingo", "feriado"],
+                "title": "2. Horário de Funcionamento e Retorno de Expediente",
+                "keywords": ["horario", "horarios", "funcionamento", "aberto", "abre", "fecha", "atendimento", "sabado", "domingo", "feriado", "expediente", "noite"],
                 "content": (
-                    "Horário de atendimento presencial e WhatsApp:\n"
+                    "Horário de atendimento presencial na loja e humano via WhatsApp:\n"
                     "• Segunda a Sexta-feira: 09:00 às 18:00\n"
                     "• Sábado: 09:00 às 13:00\n"
                     "• Domingo e Feriados: Fechado\n"
-                    "Em datas comemorativas especiais (Black Friday, Aniversário da Loja, Natal), os horários podem ser estendidos com aviso prévio nas redes sociais."
+                    "• REGRA FORA DO EXPEDIENTE (Seção 7.1): Caso o cliente entre em contato fora do horário de funcionamento (ex.: domingos, feriados ou à noite), informe obrigatoriamente o horário de retorno do atendimento humano/presencial (ex.: se for no domingo, informe que o atendimento retorna na segunda-feira às 09:00).\n"
+                    "• Em datas especiais (Black Friday, Aniversário da Loja, Natal), os horários podem ser estendidos com aviso prévio nas redes sociais e WhatsApp."
                 )
             },
             "pagamento": {
@@ -69,7 +70,7 @@ class PolicyEngine:
             },
             "trocas_devolucoes": {
                 "title": "4. Política de Trocas e Devoluções (CDC)",
-                "keywords": ["troca", "trocar", "devolucao", "devolver", "arrependimento", "defeito", "cancelamento", "reembolso", "estorno", "prazo troca"],
+                "keywords": ["troca", "trocar", "devolucao", "devolver", "arrependimento", "defeito", "cancelamento", "reembolso", "estorno", "prazo troca", "setup", "regulagem", "encomenda", "boquilha", "liquidacao", "venda final"],
                 "content": (
                     "A Empório da Música segue rigorosamente o Código de Defesa do Consumidor (Lei nº 8.078/90):\n\n"
                     "4.1 Direito de Arrependimento (Compras Online / WhatsApp):\n"
@@ -82,27 +83,27 @@ class PolicyEngine:
                     "• Após os 30 dias (e até o término da garantia), o cliente aciona a garantia do fabricante, com intermediação da Empório da Música mediante solicitação.\n"
                     "• Não são cobertos danos causados por mau uso, quedas, umidade excessiva ou intervenções de terceiros não autorizados.\n\n"
                     "4.3 Trocas por Preferência (cor, modelo, tamanho):\n"
-                    "• Permitidas em até 7 dias, condicionadas à disponibilidade em estoque. Produto em perfeito estado na embalagem original.\n\n"
-                    "4.4 Itens NÃO Elegíveis para Troca:\n"
-                    "• Instrumentos com personalização ou ajustes sob encomenda (setup/regulagem especial sob medida);\n"
-                    "• Produtos adquiridos em liquidação com aviso expresso de 'venda final';\n"
-                    "• Boquilhas de instrumentos de sopro (por rígidas questões de higiene sanitária)."
+                    "• Permitidas em até 7 dias, condicionadas à disponibilidade em estoque. Produto em perfeito estado na embalagem original (exceto itens da Seção 4.4).\n\n"
+                    "4.4 Itens ESTRITAMENTE NÃO Elegíveis para Troca ou Devolução:\n"
+                    "• Instrumentos com personalização ou ajustes sob encomenda (setup, regulagem especial solicitada pelo cliente): NÃO podem ser trocados por preferência nem devolvidos por arrependimento após a customização;\n"
+                    "• Produtos adquiridos em promoções de liquidação com aviso explícito de 'venda final';\n"
+                    "• Boquilhas de instrumentos de sopro, por rígidas questões de higiene sanitária (mesmo dentro de 7 dias, boquilhas NÃO são elegíveis para troca)."
                 )
             },
             "frete_entregas": {
                 "title": "5. Política de Frete, Entregas e Rastreamento",
-                "keywords": ["frete", "entrega", "prazo", "motoboy", "campo grande", "correios", "sedex", "pac", "jadlog", "rastreamento", "codigo rastreio"],
+                "keywords": ["frete", "entrega", "prazo", "motoboy", "campo grande", "correios", "sedex", "pac", "jadlog", "rastreamento", "codigo rastreio", "avaria", "amassada", "rasgada", "danificada", "transportadora", "dourados", "interior", "bateria", "grande porte"],
                 "content": (
                     "5.1 Entregas na Região Metropolitana de Campo Grande/MS:\n"
                     "• Frete GRÁTIS para pedidos acima de R$ 500,00.\n"
                     "• Taxa fixa de R$ 35,00 para pedidos abaixo de R$ 500,00.\n"
                     "• Prazo: 1 a 3 dias úteis (entrega por motoboy próprio; cliente contactado por telefone antes da entrega).\n\n"
-                    "5.2 Entregas para Outras Cidades e Estados:\n"
+                    "5.2 Entregas para Outras Cidades e Estados (Interior de MS e Brasil):\n"
                     "• PAC (Correios): 5 a 12 dias úteis (rastreamento e seguro inclusos).\n"
                     "• SEDEX (Correios): 2 a 5 dias úteis (rastreamento e seguro inclusos).\n"
                     "• Jadlog (.package): 3 a 8 dias úteis (rastreamento e seguro inclusos).\n"
-                    "• Instrumentos de grande porte (baterias acústicas, pianos digitais) podem demandar frete especial com cotação individual.\n"
-                    "• Em caso de avaria aparente no transporte, o cliente deve recusar a entrega no ato e acionar a loja imediatamente.\n\n"
+                    "• INSTRUMENTOS DE GRANDE PORTE: Baterias acústicas, pianos digitais e contrabaixos acústicos podem exigir frete especial com cotação individual.\n"
+                    "• SEGURO E PROCEDIMENTO EM CASO DE AVARIA NO TRANSPORTE: Todos os envios incluem seguro contra extravios e danos durante o transporte. Em caso de caixa amassada, rasgada ou avaria no transporte, o cliente DEVE RECUSAR O RECEBIMENTO NO ATO DA ENTREGA e entrar em contato imediatamente com a loja pelo WhatsApp (67) 3321-4500 ou telefone (67) 3341-4444 para acionamento do seguro e envio de novo instrumento.\n\n"
                     "5.3 Código de Rastreamento:\n"
                     "• Enviado por e-mail e WhatsApp assim que despachado. Formato padrão: BR seguido de 9 caracteres alfanuméricos e BR (ex.: BR4K7M2X9P1BR)."
                 )
@@ -141,17 +142,17 @@ class PolicyEngine:
             },
             "garantia": {
                 "title": "8. Garantia Legal e do Fabricante",
-                "keywords": ["garantia", "defeito", "assistencia", "conserto", "mau uso", "fabricante"],
+                "keywords": ["garantia", "defeito", "assistencia", "conserto", "mau uso", "fabricante", "luthier", "eletrica", "captador", "estourou", "terceiros", "modificacao"],
                 "content": (
                     "8.1 Garantia Legal:\n"
                     "• Todos os produtos contam com garantia legal de 90 (noventa) dias contra defeitos de fabricação (CDC), a contar do recebimento.\n\n"
                     "8.2 Garantia do Fabricante:\n"
                     "• Varia de 6 meses a 2 anos dependendo da marca (detalhada no certificado que acompanha o produto).\n\n"
-                    "8.3 O que NÃO é coberto pela garantia:\n"
-                    "• Desgaste natural de peças (trastes, cordas originais, feltros, palhetas de sopro);\n"
-                    "• Danos decorrentes de mau uso, quedas, excesso de umidade ou calor;\n"
-                    "• Modificações ou manutenções por profissionais não autorizados;\n"
-                    "• Danos meramente estéticos que não afetem a tocabilidade e funcionalidade."
+                    "8.3 O que NÃO é coberto pela garantia (EXCLUSÃO IMEDIATA DE GARANTIA):\n"
+                    "• Desgaste natural de peças (trastes, cordas estouradas/gastas, feltros, palhetas de sopro);\n"
+                    "• Danos decorrentes de mau uso, quedas, exposição a condições climáticas extremas;\n"
+                    "• Modificações, ajustes na parte elétrica/captadores ou reparos realizados por terceiros/luthiers NÃO autorizados (isso anula a cobertura da garantia para o defeito);\n"
+                    "• Danos meramente estéticos que não afetem a funcionalidade do instrumento."
                 )
             },
             "privacidade_lgpd": {

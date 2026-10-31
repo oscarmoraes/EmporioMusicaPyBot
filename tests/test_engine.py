@@ -186,9 +186,10 @@ def test_case_02_produto_ativo_sem_estoque_giannini_gf3d(data_engine):
 
 
 def test_case_03_lancamento_coming_soon_kala_baritono(data_engine):
-    """Caso 03: Ukulele Kala Barítono Cedar com status coming_soon e sugestões de barítonos em estoque."""
-    kala_bar = data_engine.get_product_details(130)
+    """Caso 03: Ukulele Kala Barítono Cedar com status coming_soon e busca por tokens fora de ordem."""
+    kala_bar = data_engine.get_product_details("Kala Barítono Cedar (KA-ABP-CTG)")
     assert kala_bar["found"] is True
+    assert kala_bar["product_id"] == 130
     assert kala_bar["status"] == "coming_soon"
     assert "coming_soon" in kala_bar["status_guidance_for_agent"]
     sim_names = [s["name"] for s in kala_bar["similar_available_alternatives"]]

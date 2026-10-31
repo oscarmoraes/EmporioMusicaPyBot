@@ -8,6 +8,7 @@ simulação precisa de pagamento e avaliação de elegibilidade de trocas/devolu
 
 import csv
 import json
+import re
 import sqlite3
 import unicodedata
 from datetime import datetime
@@ -352,7 +353,7 @@ class DataEngine:
         min_price: Optional[float] = None,
         strings_filter: Optional[str] = None,
         electronics_filter: Optional[str] = None,
-        limit: int = 10
+        limit: int = 20
     ) -> Dict[str, Any]:
         """Busca no catálogo com filtros avançados, calculando preços promocionais ativos."""
         cur = self.conn.cursor()
@@ -455,6 +456,7 @@ class DataEngine:
                 "effective_price": effective_price,
                 "has_active_promotion": has_promo,
                 "promotion_details": active_promo,
+                "expired_promotions": expired_promos,
                 "stock_quantity": stock,
                 "status": status,
                 "specs": specs_dict,
@@ -530,6 +532,26 @@ class DataEngine:
                 LIMIT 1
             """, (name_term,))
             product = cur.fetchone()
+
+            # Fallback de busca por tokens normalizados (ex: 'Kala Barítono Cedar (KA-ABP-CTG)' -> 'Kala KA-ABP-CTG Barítono Cedar')
+            if not product:
+                stopwords = {"violao", "violoes", "ukulele", "ukuleles", "guitarra", "guitarras", "baixo", "baixos", "bateria", "teclado", "de", "do", "da", "com", "para"}
+                q_tokens = [t for t in re.findall(r"[a-z0-9]+", normalize_text(str(product_id_or_name))) if t not in stopwords and len(t) >= 2]
+                if q_tokens:
+                    cur.execute("""
+                        SELECT p.*, c.name as category_name
+                        FROM products p
+                        JOIN categories c ON p.category_id = c.category_id
+                    """)
+                    best_row = None
+                    best_score = 0
+                    for row in cur.fetchall():
+                        target_norm = normalize_text(f"{row['name']} {row['description'] or ''}")
+                        matched_count = sum(1 for tok in q_tokens if tok in target_norm)
+                        if matched_count > best_score and matched_count >= max(1, len(q_tokens) // 2):
+                            best_score = matched_count
+                            best_row = row
+                    product = best_row
 
         if not product:
             return {"found": False, "message": f"Produto '{product_id_or_name}' não encontrado no catálogo."}
@@ -617,6 +639,16 @@ class DataEngine:
                 "Não está disponível para retirada imediata hoje; apresente os modelos similares disponíveis para pronta entrega."
             )
 
+        expired_guidance = None
+        if expired_promos and not has_promo:
+            exp_list = ", ".join([f"{ep['description']} ({int(ep['discount_percent'])}% off)" for ep in expired_promos])
+            expired_guidance = (
+                f"ATENÇÃO (Seção 7.3 — Promoção Expirada): Este produto já teve promoção(ões) anterior(es) que estão ENCERRADAS/VENCIDAS no sistema: [{exp_list}]. "
+                f"Você DEVE informar explicitamente na sua resposta que a campanha ({exp_list}) já foi encerrada/expirou, apresentar o preço atual ({format_brl(effective_price)}) "
+                f"e destacar o desconto de 5% no PIX ({format_brl(payment_plans['pix']['price'])})."
+            )
+            status_guidance = f"{status_guidance} | {expired_guidance}"
+
         return {
             "found": True,
             "product_id": pid,
@@ -627,6 +659,7 @@ class DataEngine:
             "has_active_promotion": has_promo,
             "active_promotion": active_promo,
             "expired_promotions": expired_promos,
+            "expired_promotions_guidance": expired_guidance,
             "stock_quantity": stock,
             "status": status,
             "is_clearance_opportunity": is_clearance,
