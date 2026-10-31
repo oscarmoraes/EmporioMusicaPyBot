@@ -239,6 +239,9 @@ class DataEngine:
                 })
 
         max_allowed_installments = max([i["installments"] for i in installments]) if installments else 1
+        combined_allowed = effective_price > 2000.0
+        cg_free_shipping = effective_price >= 500.0
+        cg_shipping_cost = 0.0 if cg_free_shipping else 35.0
 
         return {
             "effective_price": effective_price,
@@ -261,7 +264,25 @@ class DataEngine:
             "credit_card": {
                 "max_installments_without_interest": max_allowed_installments,
                 "available_plans": installments,
-                "rules": "Regra 3.1: até 3x (mín. R$ 50), 4x a 6x (mín. R$ 80), 7x a 12x (mín. R$ 100)."
+                "rules": "Regra 3.1: até 3x (mín. R$ 50,00), 4x a 6x (mín. R$ 80,00), 7x a 12x (mín. R$ 100,00)."
+            },
+            "combined_payment": {
+                "allowed": combined_allowed,
+                "rule": (
+                    f"Permitida combinação de formas de pagamento (ex.: PIX + cartão) pois o valor ({format_brl(effective_price)}) é acima de R$ 2.000,00 (Seção 3.1)."
+                    if combined_allowed else
+                    f"NÃO permitida combinação de formas de pagamento (ex.: PIX + cartão) pois o valor ({format_brl(effective_price)}) não ultrapassa R$ 2.000,00 (Seção 3.1)."
+                )
+            },
+            "shipping_campo_grande": {
+                "free_shipping": cg_free_shipping,
+                "shipping_fee": cg_shipping_cost,
+                "total_with_shipping": round(effective_price + cg_shipping_cost, 2),
+                "note": (
+                    "Frete GRÁTIS para Campo Grande (pedido acima de R$ 500,00 — entrega por motoboy em 1 a 3 dias úteis)."
+                    if cg_free_shipping else
+                    f"Taxa fixa de R$ 35,00 para Campo Grande (pedido abaixo de R$ 500,00 — total com frete: {format_brl(effective_price + cg_shipping_cost)}, entrega por motoboy em 1 a 3 dias úteis)."
+                )
             }
         }
 
@@ -537,27 +558,36 @@ class DataEngine:
         stock = int(product["stock_quantity"])
         status = product["status"].lower()
 
-        # Busca similares disponíveis caso o item esteja fora de estoque ou descontinuado
+        # Busca similares disponíveis caso o item esteja fora de estoque, descontinuado ou em pré-venda (coming_soon)
         similar_options = []
-        if stock == 0 or status == "discontinued":
+        if stock == 0 or status in ["discontinued", "coming_soon"]:
             cur.execute("""
                 SELECT p.product_id, p.name, p.price_brl, p.stock_quantity, p.status, p.specs
                 FROM products p
                 WHERE p.category_id = ? AND p.product_id != ? AND p.status = 'active' AND p.stock_quantity > 0
-                ORDER BY ABS(p.price_brl - ?) ASC
-                LIMIT 3
-            """, (product["category_id"], pid, effective_price))
-            for sim in cur.fetchall():
+            """, (product["category_id"], pid))
+            candidates = cur.fetchall()
+            prod_norm_name = normalize_text(product["name"])
+            subtypes = [kw for kw in ["7 cordas", "baritono", "tenor", "concert", "soprano", "dreadnought", "folk"] if kw in prod_norm_name]
+
+            scored_candidates = []
+            for sim in candidates:
                 sim_active_promo, _ = self._get_product_promo_info(sim["product_id"])
                 sim_price = float(sim["price_brl"])
                 if sim_active_promo:
                     sim_price = round(sim_price * (1 - sim_active_promo["discount_percent"] / 100.0), 2)
-                similar_options.append({
+                sim_norm_name = normalize_text(sim["name"])
+                subtype_match = any(st in sim_norm_name for st in subtypes) if subtypes else False
+                price_diff = abs(sim_price - effective_price)
+                scored_candidates.append((0 if subtype_match else 1, price_diff, {
                     "product_id": sim["product_id"],
                     "name": sim["name"],
                     "price": sim_price,
                     "stock_quantity": sim["stock_quantity"]
-                })
+                }))
+
+            scored_candidates.sort(key=lambda x: (x[0], x[1]))
+            similar_options = [item[2] for item in scored_candidates[:4]]
 
         # Montagem do status comercial e diretrizes da Seção 7.3
         status_guidance = ""
@@ -580,6 +610,11 @@ class DataEngine:
             status_guidance = (
                 "Produto descontinuado e sem estoque. Conforme Seção 7.3 do manual, "
                 "informe que saiu de linha e sugira os modelos sucessores/equivalentes sugeridos."
+            )
+        elif status == "coming_soon":
+            status_guidance = (
+                "Lançamento em pré-venda (status 'coming_soon' — chegando em breve ao estoque). "
+                "Não está disponível para retirada imediata hoje; apresente os modelos similares disponíveis para pronta entrega."
             )
 
         return {
@@ -649,7 +684,8 @@ class DataEngine:
 
             # Busca itens do pedido
             cur.execute("""
-                SELECT oi.quantity, p.product_id, p.name as product_name, p.price_brl, c.name as category_name
+                SELECT oi.quantity, p.product_id, p.name as product_name, p.price_brl,
+                       p.status as product_status, c.name as category_name
                 FROM order_items oi
                 JOIN products p ON oi.product_id = p.product_id
                 JOIN categories c ON p.category_id = c.category_id
@@ -670,7 +706,7 @@ class DataEngine:
                 "eligible_for_7d_regret_return": False,
                 "days_since_estimated_delivery": None,
                 "regret_return_policy": "Art. 49 CDC e Seção 4.1: devolução em até 7 dias corridos após o recebimento, com frete pago pela loja e estorno integral em até 10 dias úteis.",
-                "defect_exchange_policy": "Seção 4.2 e 8.1: até 30 dias corridos na loja para defeitos de fabricação; garantia legal de 90 dias pelo CDC."
+                "defect_exchange_policy": "Seção 4.2 e 8.1: até 30 dias corridos na loja para defeitos de fabricação; após 30 dias aciona garantia do fabricante com intermediação da loja (garantia legal de 90 dias pelo CDC)."
             }
 
             if status == "delivered":
@@ -687,14 +723,55 @@ class DataEngine:
                     return_eligibility["eligible_for_7d_regret_return"] = False
                     return_eligibility["regret_status"] = f"PRAZO EXPIRADO: Entregue há {days_since_del} dias (o prazo de 7 dias para arrependimento já encerrou)."
 
-                # Defeito de fabricação (30 dias loja)
-                return_eligibility["within_30d_store_defect_window"] = (0 <= days_since_del <= 30)
-                return_eligibility["within_90d_legal_warranty"] = (0 <= days_since_del <= 90)
+                # Defeito de fabricação (30 dias loja vs 90 dias CDC legal vs Fabricante)
+                within_30d = (0 <= days_since_del <= 30)
+                within_90d = (0 <= days_since_del <= 90)
+                return_eligibility["within_30d_store_defect_window"] = within_30d
+                return_eligibility["within_90d_legal_warranty"] = within_90d
+
+                if within_30d:
+                    return_eligibility["defect_warranty_status"] = (
+                        f"DENTRO DOS 30 DIAS DA LOJA ({days_since_del} dias da entrega): elegível para troca direta na loja por defeito de fabricação (Seção 4.2)."
+                    )
+                elif within_90d:
+                    return_eligibility["defect_warranty_status"] = (
+                        f"FORA DOS 30 DIAS DA LOJA ({days_since_del} dias da entrega), MAS DENTRO DA GARANTIA LEGAL DE 90 DIAS DO CDC (Seção 8.1) E GARANTIA DO FABRICANTE (Seção 8.2). "
+                        "Conforme Seção 4.2, após 30 dias o cliente deve acionar a garantia do fabricante, e a Empório da Música pode intermediar o processo mediante solicitação."
+                    )
+                else:
+                    return_eligibility["defect_warranty_status"] = (
+                        f"Prazo de 30 dias da loja e 90 dias da garantia legal CDC expirados ({days_since_del} dias da entrega). "
+                        "Verifique o certificado da Garantia do Fabricante (que varia de 6 meses a 2 anos conforme a marca — Seção 8.2)."
+                    )
 
             elif status in ["pending", "confirmed"]:
-                return_eligibility["regret_status"] = "Pedido ainda em processamento/envio. O cliente pode solicitar cancelamento imediato antes do despacho."
+                coming_soon_items = [it["product_name"] for it in items if it.get("product_status") == "coming_soon"]
+                if coming_soon_items:
+                    return_eligibility["regret_status"] = (
+                        f"Pedido pendente aguardando chegada de lote de pré-venda/lançamento ('coming_soon') para: {', '.join(coming_soon_items)}. "
+                        "O cliente pode optar por aguardar o despacho ou solicitar cancelamento/troca imediata sem custo."
+                    )
+                else:
+                    return_eligibility["regret_status"] = "Pedido ainda em processamento/envio. O cliente pode solicitar cancelamento imediato antes do despacho."
             elif status == "shipped":
-                return_eligibility["regret_status"] = "Pedido em trânsito. O direito de arrependimento (7 dias) começará a contar a partir da data efetiva de recebimento."
+                is_delayed = False
+                days_overdue = 0
+                if estimated_del_str:
+                    est_date = datetime.strptime(estimated_del_str, "%Y-%m-%d")
+                    if self.reference_date > est_date:
+                        is_delayed = True
+                        days_overdue = (self.reference_date - est_date).days
+                return_eligibility["is_delayed_in_transit"] = is_delayed
+                return_eligibility["days_overdue"] = days_overdue
+                if is_delayed:
+                    return_eligibility["regret_status"] = (
+                        f"ATENÇÃO — ENTREGA EM ATRASO ({days_overdue} dias além da previsão {estimated_del_str}). "
+                        "Conforme Seção 7.3 (Reclamação), ouça o cliente com empatia, informe o código de rastreio, "
+                        "registre a reclamação e encaminhe ao setor responsável com prazo de retorno de até 24 horas úteis. "
+                        "O direito de arrependimento (7 dias) valerá a partir do recebimento, ou o cliente pode recusar/cancelar."
+                    )
+                else:
+                    return_eligibility["regret_status"] = "Pedido em trânsito. O direito de arrependimento (7 dias) começará a contar a partir da data efetiva de recebimento."
             elif status == "cancelled":
                 return_eligibility["regret_status"] = f"Pedido já cancelado. Motivo registrado: {o['notes'] or 'Não informado'}."
 

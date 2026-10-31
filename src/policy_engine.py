@@ -7,9 +7,10 @@ e detecção proativa de itens fora de escopo (acessórios não comercializados)
 
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.config import DATA_DIR, STORE_INFO
+from src.data_engine import normalize_text
 
 
 class PolicyEngine:
@@ -155,17 +156,35 @@ class PolicyEngine:
             },
             "privacidade_lgpd": {
                 "title": "9. Privacidade e Proteção de Dados (LGPD)",
-                "keywords": ["lgpd", "privacidade", "dados", "seguranca", "exclusao", "dados pessoais"],
+                "keywords": ["lgpd", "privacidade", "dados", "seguranca", "exclusao", "excluir", "dados pessoais", "marketing"],
                 "content": (
                     "A Empório da Música cumpre integralmente a LGPD (Lei nº 13.709/2018).\n"
-                    "Dados cadastrais (nome, telefone, e-mail, endereço) são utilizados estritamente para faturamento, entrega e comunicação de pedidos.\n"
-                    "A loja não compartilha dados com terceiros para fins publicitários. O cliente pode solicitar a exclusão de seus dados a qualquer momento."
+                    "Dados cadastrais (nome, telefone, e-mail, endereço) são utilizados estritamente para:\n"
+                    "• Processamento e entrega de pedidos;\n"
+                    "• Comunicação sobre status de pedidos e rastreamento;\n"
+                    "• Envio de promoções e novidades (mediante consentimento explícito do cliente);\n"
+                    "• Cumprimento de obrigações legais e fiscais.\n"
+                    "A loja NÃO compartilha dados com terceiros para fins de marketing. O cliente pode solicitar a exclusão de seus dados a qualquer momento pelo WhatsApp ou e-mail (contato@emporiodamusica.com.br)."
+                )
+            },
+            "disposicoes_finais": {
+                "title": "10. Disposições Finais e Escalonamento à Gerência",
+                "keywords": ["gerencia", "gerente", "duvida", "usado", "usados", "base de troca", "aluguel", "locacao", "consignacao", "excecao"],
+                "content": (
+                    "10. Disposições Finais:\n"
+                    "• Este manual é referência obrigatória para toda a equipe de atendimento e assistente virtual.\n"
+                    "• A loja comercializa exclusivamente instrumentos musicais novos (não há modalidade prevista no manual para aluguel/locação ou recebimento de instrumentos usados como parte de pagamento).\n"
+                    "• Em caso de dúvidas sobre a aplicação de qualquer política ou solicitações comerciais atípicas, o atendente deve consultar a gerência antes de fornecer informações definitivas ao cliente, garantindo transparência, precisão e a melhor experiência possível."
                 )
             }
         }
 
     def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
         """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""
+        # Remove menções legítimas a especificações de instrumentos (ex: '7 cordas', '4 cordas', 'cordas orquestrais')
+        cleaned = re.sub(r"\b\d+\s*cordas\b", "", text.lower())
+        cleaned = re.sub(r"\bcordas\s+(orquestrais|de\s+nylon|de\s+aco|de\s+aço|nylon|aco|aço)\b", "", cleaned)
+
         accessory_patterns = [
             r"\bcorda(s)?\b", r"\bencordoamento(s)?\b", r"\bpalheta(s)?\b",
             r"\bcabo(s)?\b", r"\bcase(s)?\b", r"\bcapa(s)?\b", r"\bbag(s)?\b",
@@ -173,10 +192,9 @@ class PolicyEngine:
             r"\bamp(s)?\b", r"\bafinador(es)?\b", r"\bsuporte(s)?\b", r"\bcorreia(s)?\b"
         ]
 
-        text_lower = text.lower()
         matched = []
         for pat in accessory_patterns:
-            if re.search(pat, text_lower):
+            if re.search(pat, cleaned):
                 matched.append(pat.replace(r"\b", "").replace("(s)?", "s").replace("(es)?", "es"))
 
         if matched:
@@ -186,7 +204,7 @@ class PolicyEngine:
                 "policy_instruction": (
                     "Conforme a Seção 1 e Seção 7.1 do manual, a Empório da Música trabalha "
                     "EXCLUSIVAMENTE com instrumentos musicais completos para garantir atendimento especializado, "
-                    "não comercializando acessórios como cordas, palhetas, cabos, cases, pedais ou amplificadores. "
+                    "não comercializando acessórios como cordas avulsas, palhetas, cabos, cases, pedais ou amplificadores. "
                     "O assistente deve explicar isso com cordialidade e sugerir educadamente que o cliente procure lojas parceiras especializadas em acessórios."
                 )
             }
@@ -209,20 +227,21 @@ class PolicyEngine:
                 "out_of_scope_alert": out_of_scope_alert
             }
 
-        # Busca baseada em pontuação de palavras-chave
-        q_tokens = set(re.findall(r"\w+", query.lower()))
+        # Busca baseada em pontuação de palavras-chave (tolerante a acentos)
+        norm_query = normalize_text(query)
+        q_tokens = set(re.findall(r"\w+", norm_query))
         scores: List[Tuple[str, int]] = []
 
         for key, sec in self.sections.items():
             score = 0
             # Pontuação por keywords cadastradas
             for kw in sec["keywords"]:
-                if kw in query.lower():
+                if normalize_text(kw) in norm_query:
                     score += 3
             # Pontuação por termos no conteúdo
-            c_lower = sec["content"].lower()
+            c_norm = normalize_text(sec["content"])
             for token in q_tokens:
-                if len(token) > 3 and token in c_lower:
+                if len(token) > 3 and token in c_norm:
                     score += 1
             if score > 0:
                 scores.append((key, score))
@@ -230,11 +249,11 @@ class PolicyEngine:
         scores.sort(key=lambda x: x[1], reverse=True)
 
         if not scores:
-            # Fallback: retorna institucional e atendimento
-            matched_keys = ["institucional", "atendimento_whatsapp"]
+            # Fallback: retorna institucional, atendimento e disposições finais
+            matched_keys = ["institucional", "atendimento_whatsapp", "disposicoes_finais"]
         else:
-            # Retorna as 2 seções mais relevantes
-            matched_keys = [k for k, _ in scores[:2]]
+            # Retorna até as 3 seções mais relevantes
+            matched_keys = [k for k, _ in scores[:3]]
 
         retrieved = []
         for k in matched_keys:

@@ -202,25 +202,21 @@ O edital exige entre 3 e 5 conversas documentadas no repositório cobrindo cená
 
 ---
 
-## 7. Testes Automatizados
+## 7. Testes Automatizados (30 Casos de Teste)
 
-O projeto inclui uma suite completa de testes automatizados com `pytest` para assegurar o funcionamento das ferramentas e a cobertura de edge cases:
+O projeto inclui uma suite robusta de **30 testes automatizados** com `pytest` cobrindo toda a camada de dados, cálculos financeiros, logística e normas do CDC/LGPD:
 
 ```bash
 pytest -v tests/test_engine.py
 ```
 
-### Casos de Teste Cobertos:
-- `test_normalize_text`: normalização de strings, remoção de diacríticos e acentuações;
-- `test_catalog_search_violões_under_1000`: filtros por teto de preço, status de estoque e separação de indisponíveis;
-- `test_active_promotion_and_pix_rule`: cálculo correto do preço promocional do *Crafter HT-100* e veto a 5% extra no PIX (Seção 6.2);
-- `test_regular_product_pix_discount`: aplicação dos 5% de desconto no PIX para produtos sem promoção ativa (*Takamine GD20*);
-- `test_clearance_opportunity_ibanez_bass`: ativação do sinalizador de Ponta de Estoque para produto descontinuado com estoque positivo;
-- `test_installment_ladder_rules`: validação matemática das parcelas mínimas de R$ 50 (até 3x), R$ 80 (4x a 6x) e R$ 100 (7x a 12x);
-- `test_customer_order_lookup_and_cdc_returns`: busca unificada de pedidos por cliente e contagem de prazo para devolução por arrependimento;
-- `test_empty_catalog_categories`: detecção de categorias válidas da loja temporariamente sem produtos cadastrados (Sopro e Cordas Orquestrais);
-- `test_policy_engine_retrieval`: recuperação semântica precisa de seções do manual normativo;
-- `test_out_of_scope_detection`: detecção proativa de termos de acessórios não comercializados.
+### Baterias de Teste Cobertas:
+- **Núcleo Base (10 testes):** normalização textual, busca de catálogo com teto de preço, promoções ativas, veto a PIX cumulativo, desconto PIX regular, ponta de estoque (`Ibanez Bass 2X`), escada de parcelamento sem juros, pedidos/devolução CDC, categorias sem estoque e detecção de acessórios fora de escopo;
+- **Bateria A — Consultoria Musical & Catálogo Avançado (Casos 01 a 04):** violões de 7 cordas (descontinuado `Shelby SN-7C` vs sucessores ativos), esgotado `Giannini GF-3D` com similares, lançamento em pré-venda (`coming_soon` `Kala Barítono Cedar`) e equipamentos profissionais de estúdio acima de R$ 10.000,00;
+- **Bateria B — Finanças, Parcelamento & Promoções Expiradas (Casos 05 a 08):** transparência em promoções encerradas (Black Friday e Páscoa), trava de parcela mínima em itens de menor valor (`Shelby Soprano`), regra de pagamento combinado PIX + Cartão (limite de R$ 2.000,00) e impacto de desconto promocional sobre a faixa de frete grátis em Campo Grande (`Ohana CK-20`);
+- **Bateria C — Logística & Situações Críticas de Entrega (Casos 09 a 12):** pedido em trânsito com prazo estimado vencido e protocolo de reclamação de 24h úteis (`Order #8`), pedido pendente aguardando item em pré-venda (`Order #14`), pedido multi-itens de alto valor (`Order #15`) e múltiplos pedidos do mesmo cliente com cancelamento por endereço inválido (`Order #20`);
+- **Bateria D — Trocas, Devoluções CDC & Garantias (Casos 13 a 16):** defeito após os 30 dias da loja mas dentro dos 90 dias da Garantia Legal CDC (`Order #7`), itens inelegíveis para troca (setup sob encomenda, venda final e boquilhas de sopro), perda de garantia por reparo em luthier não autorizado/desgaste natural e recusa no ato por avaria no transporte;
+- **Bateria E — LGPD, Expediente & Guardrails Avançados (Casos 17 a 20):** exclusão de dados pessoais pela LGPD, atendimento fora de expediente aos domingos/horário de sábado, pedidos mistos (acessórios proibidos + guitarra `Fender Telecaster`) e escalonamento à gerência para propostas comerciais não previstas no manual (instrumento usado na troca e aluguel).
 
 ---
 

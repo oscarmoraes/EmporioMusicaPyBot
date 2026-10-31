@@ -154,3 +154,217 @@ def test_out_of_scope_detection(policy_engine):
 
     check2 = policy_engine.check_out_of_scope_accessory("vocês têm violão takamine aço?")
     assert check2 is None
+
+
+# =============================================================================
+# EXPANSÃO: 20 NOVOS CASOS DE ATENDIMENTO (BATERIAS A, B, C, D, E)
+# =============================================================================
+
+# --- BATERIA A: Consultoria Musical & Filtros Complexos de Catálogo ---
+
+def test_case_01_violao_7_cordas_descontinuado_e_sucessores(data_engine, policy_engine):
+    """Caso 01: Shelby SN-7C 7 Cordas descontinuado deve sugerir os sucessores de 7 cordas ativos."""
+    # '7 cordas' NÃO deve ser confundido com acessório avulso
+    assert policy_engine.check_out_of_scope_accessory("Quero um violão de 7 cordas Shelby SN-7C") is None
+
+    shelby = data_engine.get_product_details("Shelby SN-7C")
+    assert shelby["found"] is True
+    assert shelby["status"] == "discontinued"
+    assert shelby["stock_quantity"] == 0
+    sim_names = [s["name"] for s in shelby["similar_available_alternatives"]]
+    assert any("7 Cordas" in name for name in sim_names)
+
+
+def test_case_02_produto_ativo_sem_estoque_giannini_gf3d(data_engine):
+    """Caso 02: Giannini GF-3D ativo com estoque 0, promoções expiradas e similares."""
+    gf3d = data_engine.get_product_details("Giannini GF-3D")
+    assert gf3d["found"] is True
+    assert gf3d["status"] == "active"
+    assert gf3d["stock_quantity"] == 0
+    assert len(gf3d["expired_promotions"]) == 2
+    assert len(gf3d["similar_available_alternatives"]) > 0
+
+
+def test_case_03_lancamento_coming_soon_kala_baritono(data_engine):
+    """Caso 03: Ukulele Kala Barítono Cedar com status coming_soon e sugestões de barítonos em estoque."""
+    kala_bar = data_engine.get_product_details(130)
+    assert kala_bar["found"] is True
+    assert kala_bar["status"] == "coming_soon"
+    assert "coming_soon" in kala_bar["status_guidance_for_agent"]
+    sim_names = [s["name"] for s in kala_bar["similar_available_alternatives"]]
+    assert any("Barítono" in n for n in sim_names)
+
+
+def test_case_04_instrumentos_high_end_acima_10000(data_engine):
+    """Caso 04: Busca de guitarras e teclados profissionais acima de R$ 10.000,00."""
+    guitars = data_engine.search_catalog(category="guitarra", min_price=10000.0)
+    g_names = [p["name"] for p in guitars["available_products"]]
+    assert any("Stratocaster" in n for n in g_names)
+    assert any("Les Paul" in n for n in g_names)
+
+    synths = data_engine.search_catalog(category="teclado", min_price=10000.0)
+    s_names = [p["name"] for p in synths["available_products"]]
+    assert any("Nord Synth 2 Pro" in n for n in s_names)
+
+
+# --- BATERIA B: Regras Financeiras, Parcelamento e Promoções Expiradas ---
+
+def test_case_05_promocoes_expiradas_tagima_e_martin(data_engine):
+    """Caso 05: Histórico de promoções encerradas (Black Friday e Páscoa) para transparência (Seção 7.3)."""
+    woodstock = data_engine.get_product_details("Tagima Woodstock")
+    assert woodstock["has_active_promotion"] is False
+    assert any(p["description"] == "Black Friday" and p["discount_percent"] == 30.0 for p in woodstock["expired_promotions"])
+
+    martin = data_engine.get_product_details("Martin D-28 Dreadnought")
+    assert martin["has_active_promotion"] is False
+    assert len(martin["expired_promotions"]) == 2
+
+
+def test_case_06_escada_parcelamento_shelby_soprano(data_engine):
+    """Caso 06: Ukulele de R$ 159,90 deve parcelar em no máximo 3x de R$ 53,30 (4x violaria mín. R$ 80)."""
+    shelby_uke = data_engine.get_product_details(119)
+    assert shelby_uke["effective_price"] == 159.9
+    cc = shelby_uke["payment_conditions"]["credit_card"]
+    assert cc["max_installments_without_interest"] == 3
+    assert cc["available_plans"][-1]["installment_value"] == 53.3
+
+
+def test_case_07_pagamento_combinado_limite_2000(data_engine):
+    """Caso 07: Combinação PIX + Cartão permitida apenas acima de R$ 2.000,00 (Seção 3.1)."""
+    apx = data_engine.get_product_details("Yamaha APX600")
+    assert apx["effective_price"] == 1899.0
+    assert apx["payment_conditions"]["combined_payment"]["allowed"] is False
+
+    taylor = data_engine.get_product_details("Taylor 110e")
+    assert taylor["effective_price"] == 5519.08
+    assert taylor["payment_conditions"]["combined_payment"]["allowed"] is True
+
+
+def test_case_08_desconto_ativo_ohana_impacta_frete_campo_grande(data_engine):
+    """Caso 08: Ohana CK-20 cai de R$ 549 para R$ 439,20 (-20%), ficando abaixo de R$ 500 (frete R$ 35)."""
+    ohana = data_engine.get_product_details("Ohana CK-20")
+    assert ohana["original_price"] == 549.0
+    assert ohana["effective_price"] == 439.2
+    ship_cg = ohana["payment_conditions"]["shipping_campo_grande"]
+    assert ship_cg["free_shipping"] is False
+    assert ship_cg["shipping_fee"] == 35.0
+    assert ship_cg["total_with_shipping"] == 474.2
+
+
+# --- BATERIA C: Rastreio de Pedidos, Logística e Situações Críticas de Entrega ---
+
+def test_case_09_pedido_em_transito_com_atraso_e_reclamacao(data_engine):
+    """Caso 09: Pedido #8 (Ana Carolina) em trânsito com entrega prevista vencida (28/02 vs 25/03)."""
+    res = data_engine.lookup_orders(order_id=8)
+    assert res["found"] is True
+    ord8 = res["orders"][0]
+    assert ord8["status"] == "shipped"
+    assert ord8["tracking_code"] == "BRJL5544332BR"
+    analysis = ord8["return_and_warranty_analysis"]
+    assert analysis["is_delayed_in_transit"] is True
+    assert analysis["days_overdue"] == 25
+    assert "24 horas úteis" in analysis["regret_status"]
+
+
+def test_case_10_pedido_pendente_por_item_coming_soon(data_engine):
+    """Caso 10: Pedido #14 (Diego) pendente por conter o Ukulele Kala Barítono em pré-venda ('coming_soon')."""
+    res = data_engine.lookup_orders(order_id=14)
+    ord14 = res["orders"][0]
+    assert ord14["status"] == "pending"
+    assert ord14["items"][0]["product_status"] == "coming_soon"
+    assert "coming_soon" in ord14["return_and_warranty_analysis"]["regret_status"]
+
+
+def test_case_11_pedido_multi_itens_alto_valor_aline(data_engine):
+    """Caso 11: Pedido #15 (Aline Borges) possui 2 instrumentos somando R$ 8.348,00 e está pendente."""
+    res = data_engine.lookup_orders(customer_query="Aline Borges")
+    ord15 = res["orders"][0]
+    assert ord15["order_id"] == 15
+    assert len(ord15["items"]) == 2
+    assert ord15["total_brl"] == 8348.0
+    assert "cancelamento imediato" in ord15["return_and_warranty_analysis"]["regret_status"]
+
+
+def test_case_12_pedidos_multiplos_thiago_endereco_invalido(data_engine):
+    """Caso 12: Cliente Thiago Barbosa Lima tem Pedido #2 (entregue) e Pedido #20 (cancelado por endereço inválido)."""
+    res = data_engine.lookup_orders(customer_query="Thiago Barbosa")
+    assert res["total_orders"] == 2
+    ord20 = [o for o in res["orders"] if o["order_id"] == 20][0]
+    assert ord20["status"] == "cancelled"
+    assert "inválido" in ord20["notes"]
+
+
+# --- BATERIA D: Trocas, Devoluções CDC e Garantias Complexas ---
+
+def test_case_13_defeito_apos_30d_dentro_90d_garantia_legal_leticia(data_engine):
+    """Caso 13: Pedido #7 (Letícia) entregue há 36 dias -> fora dos 30d da loja, mas dentro dos 90d do CDC."""
+    res = data_engine.lookup_orders(order_id=7)
+    ord7 = res["orders"][0]
+    analysis = ord7["return_and_warranty_analysis"]
+    assert analysis["days_since_estimated_delivery"] == 36
+    assert analysis["within_30d_store_defect_window"] is False
+    assert analysis["within_90d_legal_warranty"] is True
+    assert "DENTRO DA GARANTIA LEGAL DE 90 DIAS" in analysis["defect_warranty_status"]
+
+
+def test_case_14_itens_nao_elegiveis_para_troca_setup_boquilha(policy_engine):
+    """Caso 14: Recuperação da Seção 4.4 sobre itens inelegíveis (setup sob encomenda, venda final, boquilhas)."""
+    pol = policy_engine.retrieve_policies("posso trocar violão com regulagem especial ou boquilha de sopro?")
+    contents = " ".join([s["content"] for s in pol["sections"]])
+    assert "4.4 Itens NÃO Elegíveis para Troca" in contents
+    assert "Boquilhas" in contents
+
+
+def test_case_15_exclusao_garantia_mau_uso_e_terceiros(policy_engine):
+    """Caso 15: Recuperação da Seção 8.3 sobre perda de garantia por reparo não autorizado e desgaste natural."""
+    pol = policy_engine.retrieve_policies("levei no luthier e a corda estourou, a garantia cobre?")
+    contents = " ".join([s["content"] for s in pol["sections"]])
+    assert "8.3 O que NÃO é coberto pela garantia" in contents
+    assert "não autorizados" in contents
+
+
+def test_case_16_avaria_transporte_recusa_no_ato(policy_engine):
+    """Caso 16: Orientação da Seção 5.2 para recusar entrega em caso de avaria aparente no transporte."""
+    pol = policy_engine.retrieve_policies("caixa chegou amassada com avaria no frete da transportadora")
+    contents = " ".join([s["content"] for s in pol["sections"]])
+    assert "recusar a entrega no ato" in contents
+
+
+# --- BATERIA E: LGPD, Fora de Expediente e Guardrails Avançados ---
+
+def test_case_17_lgpd_exclusao_dados_e_nao_compartilhamento(policy_engine):
+    """Caso 17: Conformidade LGPD (Lei 13.709/2018) sobre marketing e exclusão de dados."""
+    pol = policy_engine.retrieve_policies("quero excluir meus dados pessoais pela LGPD")
+    sec_keys = [s["section_key"] for s in pol["sections"]]
+    assert "privacidade_lgpd" in sec_keys
+    contents = " ".join([s["content"] for s in pol["sections"]])
+    assert "13.709/2018" in contents
+
+
+def test_case_18_horario_funcionamento_domingo_e_sabado(policy_engine):
+    """Caso 18: Consulta de horários aos sábados (09h-13h), domingos/feriados (fechado) e datas especiais."""
+    pol = policy_engine.retrieve_policies("qual o horário de funcionamento no sábado e no domingo?")
+    sec_keys = [s["section_key"] for s in pol["sections"]]
+    assert "horarios" in sec_keys
+
+
+def test_case_19_pedido_misto_acessorios_e_fender_telecaster(data_engine, policy_engine):
+    """Caso 19: Detecta acessórios proibidos (cabo/pedal) na frase mista, mas encontra a Fender Telecaster."""
+    acc = policy_engine.check_out_of_scope_accessory("Quero um cabo P10, um pedal e uma guitarra Fender Telecaster")
+    assert acc is not None
+    assert acc["is_out_of_scope"] is True
+
+    tele = data_engine.get_product_details("Fender Telecaster")
+    assert tele["found"] is True
+    assert tele["effective_price"] == 5400.0
+    assert tele["stock_quantity"] == 15
+
+
+def test_case_20_escalonamento_gerencia_usados_e_aluguel(policy_engine):
+    """Caso 20: Dúvidas fora das políticas previstas (instrumento usado na troca / aluguel) escalonam à gerência (Seção 10)."""
+    pol = policy_engine.retrieve_policies("vocês aceitam violão usado como parte de pagamento ou fazem aluguel?")
+    sec_keys = [s["section_key"] for s in pol["sections"]]
+    assert "disposicoes_finais" in sec_keys
+    contents = " ".join([s["content"] for s in pol["sections"]])
+    assert "consultar a gerência" in contents
+

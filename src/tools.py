@@ -124,7 +124,7 @@ AGENT_TOOLS = [
                         "enum": [
                             "institucional", "horarios", "pagamento", "trocas_devolucoes",
                             "frete_entregas", "promocoes", "atendimento_whatsapp",
-                            "garantia", "privacidade_lgpd"
+                            "garantia", "privacidade_lgpd", "disposicoes_finais"
                         ],
                         "description": "Tópico normativo específico caso o assunto já esteja claramente identificado"
                     }
