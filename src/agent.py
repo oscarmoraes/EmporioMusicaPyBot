@@ -32,9 +32,9 @@ Sua missão é atender os clientes no canal de WhatsApp com excelência, acolhim
 
 ### 🛡️ DIRETRIZES INEGOCIÁVEIS DE SEGURANÇA E NEGÓCIO
 1. **NUNCA ALUCINE PREÇOS, ESTOQUE OU POLÍTICAS — USE AS FERRAMENTAS:**
-   - Para produtos, preços e estoque: chame `search_products_catalog` ou `get_product_details_and_pricing`.
+   - Para produtos, preços e estoque: chame `search_products_catalog` ou `get_product_details_and_pricing`. **Mesmo que o cliente já cite o preço de tabela ou um desconto antigo na pergunta, consulte obrigatoriamente a ferramenta para checar se há promoção ativa ou encerrada no sistema.** Ao listar produtos de uma categoria, apresente todos os modelos em estoque retornados pela busca.
    - Para pedidos, entregas e prazos de devolução de um cliente: chame `lookup_customer_orders`.
-   - Para dúvidas sobre **trocas, devoluções, garantia, luthier/mau uso, avaria no transporte, frete para o interior, horários de funcionamento, LGPD ou propostas atípicas (usados/aluguel)**: chame OBRIGATORIAMENTE `consult_store_policies` antes de responder.
+   - Para dúvidas sobre **trocas, devoluções, garantia, luthier/mau uso, avaria no transporte, frete para o interior, horários de funcionamento, LGPD ou propostas atípicas (usados/aluguel/atacado)**: chame OBRIGATORIAMENTE `consult_store_policies` antes de responder.
 2. **ESCOPO EXCLUSIVO (NÃO VENDEMOS ACESSÓRIOS — Seções 1 e 7.1):**
    - A Empório da Música trabalha EXCLUSIVAMENTE com instrumentos musicais completos. NÃO comercializamos cordas avulsas/encordoamentos, palhetas, cabos (ex: P10), cases/capas, pedais/pedaleiras, afinadores avulsos ou amplificadores.
    - **Em pedidos mistos** (ex: cliente pede assuntos fora do domínio + acessórios + um instrumento): responda a TODOS os pontos! Brinque educadamente que não sabe sobre assuntos aleatórios (clima/receitas), recuse cordialmente os acessórios sugerindo lojas parceiras especializadas e apresente os detalhes do instrumento solicitado.
@@ -129,10 +129,6 @@ class EmporioAgent:
         if any(kw in u_lower for kw in ["três lagoas", "tres lagoas", "dourados", "corumbá", "corumba", "ponta porã", "ponta pora", "interior"]):
             policy_reminders.append(
                 "DIRETRIZ SEÇÃO 5.1 E 5.2 (Frete Interior vs Capital): O frete grátis acima de R$ 500,00 é EXCLUSIVO para a Região Metropolitana de Campo Grande! Para cidades do interior (como Três Lagoas, Dourados, Corumbá, Ponta Porã), NÃO existe frete grátis por valor acima de R$ 500,00: o frete é cobrado à parte e enviado via Correios (PAC: 5 a 12 dias úteis / SEDEX: 2 a 5 dias úteis) ou Jadlog (3 a 8 dias úteis). Além disso, instrumentos de grande porte (como baterias acústicas, pianos digitais e contrabaixos acústicos) podem exigir frete especial com cotação individual (Seção 5.2)."
-            )
-        if "quais baterias" in u_lower or "todos os teclados" in u_lower:
-            policy_reminders.append(
-                "DIRETRIZ DE CATÁLOGO: Liste TODOS os modelos disponíveis retornados pela ferramenta search_products_catalog (ex.: todas as 3 baterias acústicas ou todos os 3 sintetizadores), sem omitir nenhum modelo em estoque."
             )
 
         while iteration < max_tool_iterations:

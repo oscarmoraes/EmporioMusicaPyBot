@@ -325,11 +325,11 @@ class DataEngine:
             "violao": 5, "violoes": 5, "violão": 5, "violões": 5,
             "guitarra": 1, "guitarras": 1,
             "baixo": 2, "baixos": 2, "contrabaixo": 2, "bass": 2,
-            "bateria": 3, "baterias": 3, "percussao": 3, "percussão": 3,
-            "teclado": 4, "teclados": 4, "piano": 4, "pianos": 4, "sintetizador": 4,
+            "bateria": 3, "baterias": 3, "batera": 3, "percussao": 3, "percussão": 3,
+            "teclado": 4, "teclados": 4, "teclas": 4, "piano": 4, "pianos": 4, "sintetizador": 4, "synth": 4,
             "sopro": 6, "madeira": 6, "flauta": 6, "clarinete": 6, "sax": 6, "saxofone": 6,
             "metal": 7, "metais": 7, "trompete": 7, "trombone": 7, "tuba": 7, "trompa": 7,
-            "orquestral": 8, "orquestrais": 8, "violino": 8, "violoncelo": 8,
+            "orquestral": 8, "orquestrais": 8, "violino": 8, "violoncelo": 8, "cello": 8, "viola de arco": 8,
             "ukulele": 9, "ukuleles": 9, "uke": 9
         }
 
@@ -499,6 +499,14 @@ class DataEngine:
         available_items.sort(key=lambda x: x["effective_price"])
         clearance_items.sort(key=lambda x: x["effective_price"])
 
+        # Se a busca não encontrou itens disponíveis, mas encontrou item esgotado/descontinuado/em pré-venda,
+        # anexa automaticamente alternativas disponíveis da mesma categoria/subtipo (Seção 7.3)
+        similar_from_search = []
+        unavailable_found = out_of_stock_items + discontinued_items + coming_soon_items
+        if not available_items and unavailable_found:
+            details_unavail = self.get_product_details(unavailable_found[0]["product_id"])
+            similar_from_search = details_unavail.get("similar_available_alternatives", [])
+
         response = {
             "query_criteria": {
                 "query": query,
@@ -513,6 +521,7 @@ class DataEngine:
             "out_of_stock_products": out_of_stock_items,
             "discontinued_products": discontinued_items,
             "coming_soon_products": coming_soon_items,
+            "similar_available_alternatives": similar_from_search,
             "empty_category_notice": requested_empty_cat
         }
 

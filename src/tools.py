@@ -32,11 +32,11 @@ AGENT_TOOLS = [
                     },
                     "max_price": {
                         "type": "number",
-                        "description": "Preço máximo em Reais (R$) considerado sobre o preço efetivo/promocional"
+                        "description": "Preço máximo em Reais (R$) considerado sobre o preço efetivo/promocional. Preencha APENAS se o cliente citar um valor numérico explícito de teto (ex: 'até 1000'); NUNCA invente um teto se o cliente pedir apenas 'do mais barato ao mais caro'."
                     },
                     "min_price": {
                         "type": "number",
-                        "description": "Preço mínimo em Reais (R$)"
+                        "description": "Preço mínimo em Reais (R$). Preencha APENAS se o cliente citar um valor numérico explícito de piso (ex: 'acima de 10000')."
                     },
                     "strings_filter": {
                         "type": "string",
@@ -59,7 +59,9 @@ AGENT_TOOLS = [
             "description": (
                 "Obtém a ficha técnica completa, disponibilidade exata de estoque, status comercial "
                 "(incluindo se é ponta de estoque/últimas unidades), histórico de promoções ativas e expiradas, "
-                "simulação de PIX (com desconto de 5% se não promocional) e parcelas em até 12x sem juros no cartão."
+                "simulação de PIX (com desconto de 5% se não promocional), parcelas em até 12x sem juros no cartão "
+                "e elegibilidade para pagamento combinado (> R$ 2.000,00). SEMPRE chame esta ferramenta quando o cliente "
+                "mencionar um modelo específico de instrumento, mesmo que o cliente já cite um preço na mensagem."
             ),
             "parameters": {
                 "type": "object",

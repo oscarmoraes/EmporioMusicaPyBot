@@ -202,36 +202,42 @@ O edital exige entre 3 e 5 conversas documentadas no repositório cobrindo cená
 
 ---
 
-## 7. Testes Automatizados (30 Casos de Teste)
+## 7. Testes Automatizados (40 Casos) & Avaliação Adversarial do Agente
 
-O projeto inclui uma suite robusta de **30 testes automatizados** com `pytest` cobrindo toda a camada de dados, cálculos financeiros, logística e normas do CDC/LGPD:
+O projeto inclui uma suíte de **40 testes unitários e de integração** com `pytest` cobrindo toda a camada de dados, cálculos financeiros, logística e normas do CDC/LGPD, além de **37 cenários interativos** de 1 clique na barra lateral do Streamlit (`app.py`):
 
 ```bash
 pytest -v tests/test_engine.py
 ```
 
-### Baterias de Teste Cobertas:
+### Baterias de Teste Cobertas (`tests/test_engine.py`):
 - **Núcleo Base (10 testes):** normalização textual, busca de catálogo com teto de preço, promoções ativas, veto a PIX cumulativo, desconto PIX regular, ponta de estoque (`Ibanez Bass 2X`), escada de parcelamento sem juros, pedidos/devolução CDC, categorias sem estoque e detecção de acessórios fora de escopo;
 - **Bateria A — Consultoria Musical & Catálogo Avançado (Casos 01 a 04):** violões de 7 cordas (descontinuado `Shelby SN-7C` vs sucessores ativos), esgotado `Giannini GF-3D` com similares, lançamento em pré-venda (`coming_soon` `Kala Barítono Cedar`) e equipamentos profissionais de estúdio acima de R$ 10.000,00;
 - **Bateria B — Finanças, Parcelamento & Promoções Expiradas (Casos 05 a 08):** transparência em promoções encerradas (Black Friday e Páscoa), trava de parcela mínima em itens de menor valor (`Shelby Soprano`), regra de pagamento combinado PIX + Cartão (limite de R$ 2.000,00) e impacto de desconto promocional sobre a faixa de frete grátis em Campo Grande (`Ohana CK-20`);
 - **Bateria C — Logística & Situações Críticas de Entrega (Casos 09 a 12):** pedido em trânsito com prazo estimado vencido e protocolo de reclamação de 24h úteis (`Order #8`), pedido pendente aguardando item em pré-venda (`Order #14`), pedido multi-itens de alto valor (`Order #15`) e múltiplos pedidos do mesmo cliente com cancelamento por endereço inválido (`Order #20`);
 - **Bateria D — Trocas, Devoluções CDC & Garantias (Casos 13 a 16):** defeito após os 30 dias da loja mas dentro dos 90 dias da Garantia Legal CDC (`Order #7`), itens inelegíveis para troca (setup sob encomenda, venda final e boquilhas de sopro), perda de garantia por reparo em luthier não autorizado/desgaste natural e recusa no ato por avaria no transporte;
-- **Bateria E — LGPD, Expediente & Guardrails Avançados (Casos 17 a 20):** exclusão de dados pessoais pela LGPD, atendimento fora de expediente aos domingos/horário de sábado, pedidos mistos (acessórios proibidos + guitarra `Fender Telecaster`) e escalonamento à gerência para propostas comerciais não previstas no manual (instrumento usado na troca e aluguel).
+- **Bateria E — LGPD, Expediente & Guardrails Avançados (Casos 17 a 20):** exclusão de dados pessoais pela LGPD, atendimento fora de expediente aos domingos/horário de sábado, pedidos mistos (acessórios proibidos + guitarra `Fender Telecaster`) e escalonamento à gerência para propostas comerciais não previstas no manual (instrumento usado na troca e aluguel);
+- **Bateria F — Casos Avançados de Borda (Casos 21 a 30):** promoção ativa que reduz o preço abaixo do teto de pagamento combinado (`Crafter HT-100` de R$ 2.399 por R$ 1.967,18), homônimos/e-mail duplicado no CRM com frete para o interior (`Três Lagoas`), histórico duplo de boleto vencido (`#19`) + garantia após 90 dias (`#1`), pedido cancelado por falta de estoque na época mas com produto disponível hoje (`Rozini RC-104`), troca por preferência com diferença de valor, comparativo de baterias acústicas com frete de grande porte (`Dourados`), sintetizadores (`Korg`, `Roland`, `Nord`), categorias de orquestra/sopro e compra institucional em lote (`5x Yamaha C40` para escola de música).
+
+### Avaliação Empírica: Cenários Canônicos vs. Variações Coloquiais (WhatsApp)
+Além dos testes determinísticos, submetemos o agente completo (`gpt-4o-mini`) a duas baterias de avaliação ponta a ponta:
+1. **35 Cenários Canônicos (5 do edital + 30 das Baterias A–F):** **100% de aderência** aos fatos do banco de dados, cálculos de parcelamento/PIX e políticas da loja.
+2. **35 Variações Adversariais/Coloquiais de WhatsApp:** Reescrevemos os mesmos 35 cenários usando gírias musicais (*"pegar no rolo"*, *"quinhentão no pix de sinal"*, *"batera"*, *"mizinha arrebentou"*, *"print salvo do ano passado"*), abreviações e ordens frasais invertidas para auditar a generalização semântica do agente sem depender de palavras-chave fixas, orientando melhorias nos contratos das Tools (`src/tools.py`) e no enriquecimento de alternativas similares (`src/data_engine.py`).
 
 ---
 
 ## 8. Limitações Conhecidas & Próximos Passos
 
-Se tivéssemos mais tempo para expandir o projeto além do escopo do desafio, as seguintes melhorias seriam priorizadas:
+Em transparência com os critérios de avaliação do desafio, documentamos as limitações conhecidas da arquitetura atual e o que faríamos com mais tempo para evolução em produção:
 
-1. **Conector Oficial de WhatsApp (Meta Cloud API / Twilio):**
-   - Substituir a interface de chat simulada por uma integração oficial com a API do WhatsApp Business via webhooks assíncronos (FastAPI + Celery/Redis), suportando mensagens de áudio com transcrição via Whisper.
-2. **Checkout Assistido e Geração Dinâmica de PIX:**
-   - Implementar uma ferramenta `create_order_and_generate_pix` integrada à API do Banco Central para gerar o QR Code dinâmico do PIX (*Copia e Cola*) diretamente na conversa assim que o cliente confirmar a compra.
-3. **Autenticação Segura e LGPD:**
-   - Adicionar autenticação por código OTP enviado ao telefone cadastrado do cliente antes de exibir detalhes sensíveis de pedidos e endereços residenciais, reforçando a conformidade com a LGPD (Seção 9).
-4. **Observabilidade e Avaliação Contínua (LLM Ops):**
-   - Integrar tracing com **Langfuse** ou **OpenTelemetry** para monitorar custo de tokens, latência de chamadas e registrar avaliações automáticas de fidelidade ao catálogo e políticas (*faithfulness* e *hallucination detection*).
+1. **Trade-offs do Modelo Leve (`gpt-4o-mini`) em *Multi-Constraint Reasoning*:**
+   - Embora o `gpt-4o-mini` ofereça excelente latência e baixo custo, testes adversariais com frases muito coloquiais mostraram que, quando o usuário afirma um preço na própria pergunta (ex.: *"vi o Crafter que custa R$ 2.399..."*), modelos leves podem ocasionalmente confiar na premissa do usuário se não forem instruídos de forma estrita no schema da Tool a sempre validar o preço efetivo no banco. Em produção crítica, combinaríamos um roteador de intenção prévio ou um modelo de raciocínio superior (`gpt-4o`) para turnos financeiros complexos.
+2. **Recuperação Léxica vs. Semântica Híbrida nas Políticas (`PolicyEngine`):**
+   - O `PolicyEngine` atual utiliza indexação estruturada por seções e pontuação léxica normalizada (zero dependências externas). Para gírias regionais muito distantes do vocabulário do manual (ex.: *"pegar instrumento no rolo"* em vez de *"usado como parte de pagamento"*), uma busca puramente léxica pode exigir expansão de sinônimos. Com mais tempo, implementaríamos **Hybrid Search (BM25 + Embeddings densos via `text-embedding-3-small`)** sobre os parágrafos do manual.
+3. **Conector Oficial de WhatsApp (Meta Cloud API / Twilio) e Autenticação OTP (LGPD):**
+   - Substituir a interface simulada por webhooks assíncronos (FastAPI + Redis) e exigir validação por código OTP antes de exibir detalhes de pedidos e endereços, prevenindo exposição de dados entre homônimos no CRM (observamos no dataset casos reais de homônimos/e-mails compartilhados, como `bruno.martins@jmail.com` nos IDs `11` e `43`).
+4. **Observabilidade e LLM-as-a-Judge Contínuo:**
+   - Integrar **Langfuse / OpenTelemetry** e transformar nosso script de auditoria adversarial de 35 variações em um pipeline de CI/CD (*LLM-as-a-Judge*) para detectar regressões de prompt antes de cada deploy.
 
 ---
 

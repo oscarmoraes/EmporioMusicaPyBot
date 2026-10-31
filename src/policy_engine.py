@@ -182,10 +182,12 @@ class PolicyEngine:
 
     def check_out_of_scope_accessory(self, text: str) -> Optional[Dict[str, Any]]:
         """Detecta se o cliente está buscando acessórios que a loja deliberadamente NÃO comercializa."""
-        # Remove menções legítimas a especificações de instrumentos ou cláusulas de garantia de sopro
+        # Remove menções legítimas a especificações de instrumentos, regulagem ou sobrenomes de clientes
         cleaned = re.sub(r"\b\d+\s*cordas\b", "", text.lower())
         cleaned = re.sub(r"\bcordas\s+(orquestrais|de\s+nylon|de\s+aco|de\s+aço|nylon|aco|aço)\b", "", cleaned)
-        cleaned = re.sub(r"\bpalheta(s)?\s+de\s+sopro\b", "", cleaned)
+        cleaned = re.sub(r"\b(acao|ação|altura|ajuste)\s+das\s+cordas\b", "", cleaned)
+        cleaned = re.sub(r"\bpalheta(s)?\s+(de\s+sopro|gasta|gastas)\b", "", cleaned)
+        cleaned = re.sub(r"\bramos\s+correia\b", "", cleaned)
 
         accessory_patterns = [
             r"\bcorda(s)?\b", r"\bencordoamento(s)?\b", r"\bpalheta(s)?\b",
